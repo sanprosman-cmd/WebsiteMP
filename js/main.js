@@ -553,6 +553,9 @@
       if (window.matchMedia("(pointer: coarse)").matches) {
         var sx = 0, sy = 0, tracking = false;
         deckStage.addEventListener("touchstart", function (e) {
+          /* The arrows now live on the plate, so a drag that begins on one belongs
+             to the button — otherwise a swipe from an arrow could advance twice. */
+          if (e.target.closest && e.target.closest(".deck__nav")) { tracking = false; return; }
           var t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; tracking = true;
         }, { passive: true });
         deckStage.addEventListener("touchend", function (e) {

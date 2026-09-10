@@ -1550,16 +1550,24 @@ html.js .reveal-l.is-visible { opacity: 1; transform: none; }
 .deck__cap.is-current { opacity: 1; transform: none; }
 .deck__cap-cat { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,.58); }
 .deck__cap-text { font-size: var(--body-lg); line-height: 1.6; letter-spacing: .32px; color: var(--on-primary-mute); }
-.deck__navs { display: flex; gap: 10px; flex: 0 0 auto; }
+/* Arrows live on the plate, not under it: the control has to sit next to the
+   thing it drives, and a reader's eye is already on the photograph. They are
+   absolutely positioned inside .deck__stage and ride the same delegated
+   [data-deck-prev]/[data-deck-next] click path as before, so no JS changed. */
 .deck__nav {
-  width: 48px; height: 48px; display: grid; place-items: center;
-  border: 1px solid var(--hairline-dark); border-radius: var(--r-pill);
-  color: rgba(255,255,255,.75); background: transparent; cursor: pointer;
+  position: absolute; top: 0; bottom: 0; margin-block: auto;   /* centres without transform, leaving it free for the nudge */
+  z-index: 20;                                                 /* above the leaving plate, which is z-12 by design */
+  width: 52px; height: 52px; display: grid; place-items: center;
+  /* the ring is the same scrim white the front plate edge uses: over a near-black
+     plate a --hairline-dark border disappears into the photograph */
+  border: 1px solid rgba(255,255,255,.28); border-radius: var(--r-pill);
+  color: rgba(255,255,255,.82); background: rgba(0,0,0,.62); cursor: pointer;
   transition: color .2s ease, border-color .2s ease, background-color .2s ease, transform .2s var(--ease-out);
 }
-.deck__nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
-.deck__nav:hover { color: #fff; border-color: rgba(255,255,255,.5); }
-.deck__nav:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+.deck__nav--prev { left: 14px; }
+.deck__nav--next { right: calc(var(--deck-peek) + 14px); }   /* keeps clear of the fanned stack corners */
+.deck__nav svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.deck__nav:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 
 .deck__rail {
   display: flex; flex-wrap: wrap; gap: 6px;
@@ -1578,21 +1586,30 @@ html.js .reveal-l.is-visible { opacity: 1; transform: none; }
 .deck__dot[aria-current="true"] { background: #fff; border-color: #fff; color: var(--canvas-night); font-weight: 700; }
 
 @media (hover: hover) and (pointer: fine) {
-  .deck__nav:hover { transform: translateY(-2px); }
+  /* the hover state inverts to the house .btn--dark treatment, and the chip
+     leans the way the deck travels — same 3px the .btn__arrow nudge uses */
+  .deck__nav:hover { background: #fff; border-color: #fff; color: var(--canvas-night); }
+  .deck__nav--prev:hover { transform: translateX(-3px); }
+  .deck__nav--next:hover { transform: translateX(3px); }
 }
+/* press feedback: short, fires on touch too, and wins the transform because
+   it comes later at equal specificity — no :active:hover override needed */
+.deck__nav:active { transform: scale(.94); transition-duration: .1s; }
 @media (max-width: 860px) {
   /* a 4:3 frame matches the plates' own ratio, so nothing is cropped here */
   .deck { --deck-peek: 24px; }
   .deck__stage { aspect-ratio: 4 / 3; margin-top: 24px; }
   .deck__bar { flex-direction: column; align-items: stretch; gap: var(--sp-lg); }
-  .deck__navs { justify-content: flex-end; }
+  .deck__nav { width: 46px; height: 46px; }
+  .deck__nav--prev { left: 10px; }
+  .deck__nav--next { right: calc(var(--deck-peek) + 10px); }
 }
 @media (prefers-reduced-motion: reduce) {
   /* fewer and gentler: the deck stops travelling and simply cross-fades in place */
   .deck__slide[data-pos] { transform: none; opacity: 0; transition: opacity var(--motion-fast) linear; }
   .deck__slide[data-pos="0"] { opacity: 1; }
   .deck__cap { transform: none; transition: opacity var(--motion-fast) linear; }
-  .deck__nav:hover { transform: none; }
+  .deck__nav:hover, .deck__nav:active { transform: none; }
 }
 
 /* ============================================================
