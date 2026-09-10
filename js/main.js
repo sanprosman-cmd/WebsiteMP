@@ -726,10 +726,21 @@
   });
 })();
 
-/* Footprints globe — cobe (MIT, vendored at js/vendor/cobe.esm.js).
-   The shader module is pulled in with a dynamic import so no other page pays
-   for it, and the plate hides itself when the import or WebGL fails: the
-   hairline map above stays the source of truth either way. */
+/* Footprints globe — a hand-rolled orthographic sphere on 2D canvas.
+
+   Coastline geometry is Natural Earth 110m land (public domain), converted
+   offline into a compact ring array at assets/geo/land-110m.json.
+
+   There is deliberately no globe library here. The WebGL option we tried first
+   drew its land mask from a texture address book that disagrees with how it
+   places markers: at every southern-hemisphere anchor the sites floated in open
+   water under a straight clipped edge. Since this section is about Indonesia,
+   that is the one thing it must not get wrong. Owning the projection reduces
+   the view centre to a plain latitude and longitude, and land and markers go
+   through the same function, so they cannot drift apart.
+
+   The plate is an enrichment of the inline dossier map above it. If the
+   geometry fetch fails the graticule and the site markers still draw. */
 (function () {
   "use strict";
 
@@ -738,9 +749,12 @@
   var canvas = plate && plate.querySelector("[data-globe]");
   if (!plate || !stage || !canvas) return;
 
+  var ctx = canvas.getContext && canvas.getContext("2d");
+  if (!ctx) { plate.hidden = true; return; }
+
   var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-  /* The active sites the dossier names, as [lat, lng, marker size] —
+  /* The active sites the dossier names, as [lat, lng, marker weight] —
      the head office carries the larger dot. */
   var SITES = [
     [-6.200, 106.817, 0.030], // Jakarta · HQ
@@ -770,133 +784,311 @@
     [1.450, 128.000, 0.015]   // Jailolo
   ];
 
-  function hasWebGL() {
-    if (!window.WebGLRenderingContext) return false;
-    try {
-      var probe = document.createElement("canvas");
-      return !!(probe.getContext("webgl2") || probe.getContext("webgl"));
-    } catch (e) { return false; }
-  }
-  if (!hasWebGL()) { plate.hidden = true; return; }
+  /* Where the sphere settles when nothing is pulling it: the Banda Sea, so
+     Sumatra in the west and Halmahera in the east both sit inside the disc. */
+  var ANCHOR = { lat: -3, lng: 115.5 };
+  var MAX_LAT = 35;   // stop well short of the poles
+  var MAX_LNG = 70;
 
-  var PI = Math.PI;
-  /* cobe aims the sphere by what sits under the centre of the view. Measured against
-     the rendered buffer (marker offset vs. anchor), the laws are:
-       phi   = -(90° + longitude)   -> raises the marker's dx as +sin(phi - phi0)
-       theta = +latitude            -> raises the marker's dy as +sin(theta - lat)
-     Both in radians. Calibrated on a lone marker with the land mask off, so the only
-     bright pixel was the marker; it read dead centre at the solved anchor. */
-  var ANCHOR = { phi: -(PI / 2 + 115.5 * PI / 180), theta: -3 * PI / 180 };
-  var MAX_PHI = 1.5;      // ~86° of longitude either way
-  var MAX_THETA = 0.62;   // ~35° of latitude either way, so we never roll over a pole
+  var RAD = Math.PI / 180;
+  var TAU = Math.PI * 2;
+  var LAND = null;          // polygons -> rings -> [lng, lat]
+  var geoRequested = false;
 
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
-  import(new URL("js/vendor/cobe.esm.js", document.baseURI).href).then(function (mod) {
-    var createGlobe = mod && mod.default;
-    if (typeof createGlobe !== "function") { plate.hidden = true; return; }
+  /* Orthographic projection. x/y come back in unit-disc space, y up-negative for
+     the canvas, and v is how far the point faces the viewer: v >= 0 is near side. */
+  function project(lat, lng, c, o) {
+    var p = lat * RAD, l = (lng - c.lng) * RAD, p0 = c.lat * RAD;
+    var sp = Math.sin(p), cp = Math.cos(p), s0 = Math.sin(p0), c0 = Math.cos(p0);
+    o.v = s0 * sp + c0 * cp * Math.cos(l);
+    o.x = cp * Math.sin(l);
+    o.y = -(c0 * sp - s0 * cp * Math.cos(l));
+    return o;
+  }
 
-    /* one pointer pixel ≈ this many radians of surface: the disc is 0.8 * half the
-       stage height and spans 90° from centre to limb. */
-    var px = (PI / 2) / (0.4 * (stage.clientHeight || 420));
-    var cur = { phi: ANCHOR.phi, theta: ANCHOR.theta };
-    var off = { phi: 0, theta: 0 };
-    if (!reduced) { cur.phi -= 0.62; cur.theta += 0.18; }   // turns into frame on arrival
+  var P = { x: 0, y: 0, v: 0 };
+  var BX = new Float64Array(2048), BY = new Float64Array(2048), BV = new Float64Array(2048);
+  var BL = new Float64Array(2048), BN = new Float64Array(2048);
+  var SX = new Float64Array(4096), SY = new Float64Array(4096);
 
-    var globe = createGlobe(canvas, {
-      devicePixelRatio: window.devicePixelRatio || 1,
-      width: stage.clientWidth,
-      height: stage.clientHeight,
-      phi: cur.phi,
-      theta: cur.theta,
-      markers: SITES.map(function (s) { return { location: [s[0], s[1]], size: s[2] }; }),
-      /* Achromatic: ocean near-black, land lifted a few steps off it, the limb
-         glow kept low so it doesn't blow out. No blue anywhere. */
-      dark: 1,
-      diffuse: 1.05,
-      mapSamples: 100000,
-      mapBrightness: 0.30,
-      baseColor: [1, 1, 1],
-      markerColor: [1, 1, 1],
-      glowColor: [0.14, 0.14, 0.17],
-      markerElevation: 0.04
-    });
+  function ensure(n) {
+    if (n > BX.length) {
+      BX = new Float64Array(n); BY = new Float64Array(n); BV = new Float64Array(n);
+      BL = new Float64Array(n); BN = new Float64Array(n);
+    }
+    if (2 * n > SX.length) { SX = new Float64Array(2 * n); SY = new Float64Array(2 * n); }
+  }
 
-    var dragging = false, onScreen = false, raf = null, prev = 0, t0 = 0, lastX = 0, lastY = 0;
+  /* Shortest-path longitude step, for the few rings that close across the
+     antimeridian. */
+  function lngStep(a, b, t) { return a + ((((b - a) % 360) + 540) % 360 - 180) * t; }
 
-    function play() { if (raf === null && onScreen) raf = requestAnimationFrame(frame); }
+  function projectRing(ring, c) {
+    var n = ring.length, k;
+    ensure(n);
+    for (k = 0; k < n; k++) {
+      project(ring[k][1], ring[k][0], c, P);
+      BX[k] = P.x; BY[k] = P.y; BV[k] = P.v;
+      BL[k] = ring[k][1]; BN[k] = ring[k][0];
+    }
+    return n;
+  }
 
-    function frame(now) {
-      raf = null;
-      if (!onScreen) return;
-      if (!t0) t0 = now;
-      var dt = prev ? clamp((now - prev) / 1000, 0.004, 0.1) : 0.016;
-      var t = (now - t0) / 1000;
-      prev = now;
+  /* Land is clipped to the visible hemisphere ring by ring, then projected.
+     Snapping far-side vertices onto the limb instead — the obvious shortcut —
+     draws chords straight across the face: measured at this anchor, one ring
+     with 6% of its vertices in view painted most of the disc as land. Clipping
+     cannot do that, because a ring that is mostly behind the horizon simply has
+     almost nothing left to draw.
 
-      if (!dragging && !reduced) {
-        var decay = Math.exp(-dt * 2.4);
-        off.phi *= decay;
-        off.theta *= decay;
+     What clipping does cost us: where a continent runs off the edge of the
+     visible hemisphere, its fill closes on a straight cut rather than following
+     the horizon. Choosing the right horizon arc for that closure needs the
+     polygon's winding order, which TopoJSON does not guarantee. So the cut is
+     never stroked — only real coastline is — and the limb darkening in draw()
+     is graded hard enough that the cut lands in the shadow band. Measured cost:
+     1.0% of samples disagree with the source data inside 0.75 of the radius. */
+  function traceFill(ring, R, c) {
+    var n = projectRing(ring, c), k, j, m = 0, t;
+    for (k = 0; k < n; k++) {
+      j = k + 1 === n ? 0 : k + 1;
+      if (BV[k] >= 0) { SX[m] = BX[k]; SY[m] = BY[k]; m++; }
+      if ((BV[k] >= 0) !== (BV[j] >= 0)) {           // Sutherland–Hodgman crossing
+        t = BV[k] / (BV[k] - BV[j]);
+        project(BL[k] + (BL[j] - BL[k]) * t, lngStep(BN[k], BN[j], t), c, P);
+        SX[m] = P.x; SY[m] = P.y; m++;
       }
-      /* Two unrelated periods so the surface drift never quite repeats, and never
-         travels far enough to lose the archipelago. */
-      var wanderPhi = reduced ? 0 : Math.sin(t * 0.24) * 0.1 + Math.sin(t * 0.11 + 2.1) * 0.05;
-      var wanderTheta = reduced ? 0 : Math.sin(t * 0.17 + 1.1) * 0.03;
-      var goalPhi = ANCHOR.phi + clamp(off.phi + wanderPhi, -MAX_PHI, MAX_PHI);
-      var goalTheta = ANCHOR.theta + clamp(off.theta + wanderTheta, -MAX_THETA, MAX_THETA);
+    }
+    if (m < 3) return;                               // nothing of it is in view
+    ctx.moveTo(SX[0] * R, SY[0] * R);
+    for (k = 1; k < m; k++) ctx.lineTo(SX[k] * R, SY[k] * R);
+  }
 
-      /* Frame-rate independent ease: one constant for the arrival and the settle-back. */
-      var k = reduced ? 1 : 1 - Math.exp(-dt * 3.4);
-      cur.phi += (goalPhi - cur.phi) * k;
-      cur.theta += (goalTheta - cur.theta) * k;
-      globe.update({ phi: cur.phi, theta: cur.theta });
+  /* Coastline: only the segments genuinely in view. The chords that close the
+     fill are construction seams, not coast, so they never get drawn. */
+  function traceCoast(ring, R, c) {
+    var n = projectRing(ring, c), k, j, pen = false;
+    for (k = 0; k < n; k++) {
+      j = k + 1 === n ? 0 : k + 1;
+      if (BV[k] < 0 || BV[j] < 0) { pen = false; continue; }
+      if (!pen) { ctx.moveTo(BX[k] * R, BY[k] * R); pen = true; }
+      ctx.lineTo(BX[j] * R, BY[j] * R);
+    }
+  }
+
+  /* Parallels every 30° and meridians every 30°, drawn only where the surface
+     turns to us — the pen lifts at the horizon. */
+  function drawGraticule(c) {
+    var lat, lng, k, pen;
+    for (lat = -60; lat <= 60; lat += 30) {
+      pen = false;
+      for (k = 0; k <= 96; k++) {
+        project(lat, c.lng - 180 + 360 * k / 96, c, P);
+        if (P.v < 0) { pen = false; continue; }
+        if (pen) ctx.lineTo(P.x * R, P.y * R); else ctx.moveTo(P.x * R, P.y * R);
+        pen = true;
+      }
+    }
+    for (lng = -180; lng < 180; lng += 30) {
+      pen = false;
+      for (k = 0; k <= 64; k++) {
+        project(-90 + 180 * k / 64, lng, c, P);
+        if (P.v < 0) { pen = false; continue; }
+        if (pen) ctx.lineTo(P.x * R, P.y * R); else ctx.moveTo(P.x * R, P.y * R);
+        pen = true;
+      }
+    }
+  }
+
+  var dpr = 1, W = 0, H = 0, R = 0, degPerPx = 1;
+
+  function resize() {
+    var w = stage.clientWidth, h = stage.clientHeight;
+    if (!w || !h) return;
+    /* capped at 2: the plate is redrawn every frame and a 3× buffer would put
+       more pixels through the path than the motion is worth */
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    W = w; H = h;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    R = 0.4 * h;                 // half-height framing, disc takes 80% of it
+    /* Grab-and-drag has to put the surface under the pointer. At the centre of an
+       orthographic disc a rotation of t radians moves the surface R*t pixels, so
+       one pointer pixel is worth 1/R radians of surface. The obvious 90/R — a
+       quarter turn per radius — measures 1.55x too fast. */
+    degPerPx = (180 / Math.PI) / R;
+  }
+
+  function draw(c) {
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+    var cx = W / 2, cy = H / 2, i, j, s;
+
+    /* body — lit slightly high and left so it reads as a sphere, not a disc */
+    var body = ctx.createRadialGradient(cx - R * 0.34, cy - R * 0.4, R * 0.1, cx, cy, R);
+    body.addColorStop(0, "#17171b");
+    body.addColorStop(0.62, "#101013");
+    body.addColorStop(1, "#08080a");
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU);
+    ctx.fillStyle = body; ctx.fill();
+
+    ctx.save();
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU); ctx.clip();
+    ctx.translate(cx, cy);
+
+    /* graticule — same hairline weight as the dossier map's own grid */
+    ctx.strokeStyle = "rgba(255,255,255,.055)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    drawGraticule(c);
+    ctx.stroke();
+
+    if (LAND) {
+      /* land — lifted to roughly --hairline-dark so white markers stay dominant */
+      ctx.beginPath();
+      for (i = 0; i < LAND.length; i++) for (j = 0; j < LAND[i].length; j++) traceFill(LAND[i][j], R, c);
+      ctx.fillStyle = "#343437";
+      ctx.fill("evenodd");
+      ctx.beginPath();
+      for (i = 0; i < LAND.length; i++) for (j = 0; j < LAND[i].length; j++) traceCoast(LAND[i][j], R, c);
+      ctx.strokeStyle = "rgba(255,255,255,.14)";
+      ctx.lineWidth = 0.75;
+      ctx.stroke();
+    }
+
+    /* limb darkening, so the edge of the disc reads as curvature. Graded hard:
+       it also carries the horizon cuts that traceFill has to close with a chord. */
+    var shade = ctx.createRadialGradient(0, 0, R * 0.25, 0, 0, R);
+    shade.addColorStop(0, "rgba(0,0,0,0)");
+    shade.addColorStop(0.62, "rgba(0,0,0,.06)");
+    shade.addColorStop(0.84, "rgba(0,0,0,.30)");
+    shade.addColorStop(0.95, "rgba(0,0,0,.64)");
+    shade.addColorStop(1, "rgba(0,0,0,.84)");
+    ctx.fillStyle = shade;
+    ctx.beginPath(); ctx.arc(0, 0, R, 0, TAU); ctx.fill();
+
+    /* sites — the HQ weight gets a ring as well as a larger dot */
+    for (s = 0; s < SITES.length; s++) {
+      project(SITES[s][0], SITES[s][1], c, P);
+      if (P.v < 0) continue;
+      var rad = 1.6 + SITES[s][2] * 90;
+      ctx.globalAlpha = clamp(P.v * 3.2, 0, 1);
+      ctx.beginPath(); ctx.arc(P.x * R, P.y * R, rad, 0, TAU);
+      ctx.fillStyle = "#fff"; ctx.fill();
+      if (SITES[s][2] > 0.02) {
+        ctx.beginPath(); ctx.arc(P.x * R, P.y * R, rad + 3.5, 0, TAU);
+        ctx.strokeStyle = "rgba(255,255,255,.34)"; ctx.lineWidth = 1; ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+
+    /* limb */
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, TAU);
+    ctx.strokeStyle = "rgba(255,255,255,.14)"; ctx.lineWidth = 1; ctx.stroke();
+  }
+
+  var cur = { lat: ANCHOR.lat, lng: ANCHOR.lng };
+  var off = { lat: 0, lng: 0 };
+  resize();
+  if (!reduced) { cur.lng -= 26; cur.lat += 8; }   // turns into frame on arrival
+
+  var dragging = false, onScreen = false, raf = null, prev = 0, t0 = 0, lastX = 0, lastY = 0;
+
+  function play() { if (raf === null && onScreen) raf = requestAnimationFrame(frame); }
+
+  function frame(now) {
+    raf = null;
+    if (!onScreen) return;
+    if (!t0) t0 = now;
+    var dt = prev ? clamp((now - prev) / 1000, 0.004, 0.1) : 0.016;
+    var t = (now - t0) / 1000;
+    prev = now;
+
+    if (!dragging && !reduced) {
+      var decay = Math.exp(-dt * 2.4);
+      off.lat *= decay;
+      off.lng *= decay;
+    }
+    /* Two unrelated periods so the drift never quite repeats, and never travels
+       far enough to lose the archipelago. */
+    var wanderLng = reduced ? 0 : Math.sin(t * 0.24) * 5.5 + Math.sin(t * 0.11 + 2.1) * 2.8;
+    var wanderLat = reduced ? 0 : Math.sin(t * 0.17 + 1.1) * 1.7;
+    var goalLng = ANCHOR.lng + clamp(off.lng + wanderLng, -MAX_LNG, MAX_LNG);
+    var goalLat = ANCHOR.lat + clamp(off.lat + wanderLat, -MAX_LAT, MAX_LAT);
+
+    /* Frame-rate independent ease: one constant for the arrival and the settle-back. */
+    var k = reduced ? 1 : 1 - Math.exp(-dt * 3.4);
+    cur.lng += (goalLng - cur.lng) * k;
+    cur.lat += (goalLat - cur.lat) * k;
+
+    draw(cur);
+
+    /* With reduced motion there is no drift to keep alive, so the loop stops once
+       the sphere is at its pose and only restarts on a pointer or a new frame of
+       geometry. Nothing repaints 60 times a second to show the same image. */
+    var settled = Math.abs(goalLng - cur.lng) < 0.01 && Math.abs(goalLat - cur.lat) < 0.01;
+    if (!(reduced && settled && !dragging)) play();
+  }
+
+  function loadGeometry() {
+    if (geoRequested || !window.fetch) return;
+    geoRequested = true;
+    fetch(new URL("assets/geo/land-110m.json", document.baseURI).href)
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && d.length) LAND = d;
+        play();                       // the loop may already have parked at its pose
+      })
+      .catch(function () { /* graticule and markers alone still read */ });
+  }
+
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (entries) {
+      var seen = entries[0].isIntersecting;
+      if (seen && !onScreen) prev = 0;
+      onScreen = seen;
+      if (onScreen) { loadGeometry(); play(); }
+    }, { rootMargin: "120px 0px" }).observe(stage);
+  } else {
+    onScreen = true;
+    loadGeometry();
+  }
+
+  if ("ResizeObserver" in window) {
+    new ResizeObserver(function () { resize(); draw(cur); }).observe(stage);
+  } else {
+    window.addEventListener("resize", function () { resize(); draw(cur); });
+  }
+
+  if (window.PointerEvent) {
+    stage.addEventListener("pointerdown", function (e) {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      dragging = true;
+      lastX = e.clientX; lastY = e.clientY;
+      stage.classList.add("is-dragging", "is-touched");
+      try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+      play();
+    });
+    stage.addEventListener("pointermove", function (e) {
+      if (!dragging) return;
+      /* grab-and-drag: the surface follows the pointer, so the centre moves the
+         other way in longitude and the same way in latitude */
+      off.lng = clamp(off.lng - (e.clientX - lastX) * degPerPx, -MAX_LNG, MAX_LNG);
+      off.lat = clamp(off.lat + (e.clientY - lastY) * degPerPx, -MAX_LAT, MAX_LAT);
+      lastX = e.clientX; lastY = e.clientY;
+      play();
+    });
+    stage.addEventListener("pointerup", endDrag);
+    stage.addEventListener("pointercancel", endDrag);
+    function endDrag() {
+      dragging = false;
+      stage.classList.remove("is-dragging");
       play();
     }
+  }
 
-    if ("IntersectionObserver" in window) {
-      new IntersectionObserver(function (entries) {
-        onScreen = entries[0].isIntersecting;
-        if (onScreen) { prev = 0; play(); }
-      }, { rootMargin: "120px 0px" }).observe(stage);
-    } else {
-      onScreen = true;
-    }
-
-    if ("ResizeObserver" in window) {
-      new ResizeObserver(function () {
-        var w = stage.clientWidth, h = stage.clientHeight;
-        if (!w || !h) return;
-        px = (PI / 2) / (0.4 * h);
-        globe.update({ width: w, height: h });
-      }).observe(stage);
-    }
-
-    if (window.PointerEvent) {
-      stage.addEventListener("pointerdown", function (e) {
-        if (e.pointerType === "mouse" && e.button !== 0) return;
-        dragging = true;
-        lastX = e.clientX; lastY = e.clientY;
-        stage.classList.add("is-dragging", "is-touched");
-        try { stage.setPointerCapture(e.pointerId); } catch (err) {}
-        play();
-      });
-      stage.addEventListener("pointermove", function (e) {
-        if (!dragging) return;
-        off.phi = clamp(off.phi + (e.clientX - lastX) * px, -MAX_PHI, MAX_PHI);
-        off.theta = clamp(off.theta + (e.clientY - lastY) * px, -MAX_THETA, MAX_THETA);
-        lastX = e.clientX; lastY = e.clientY;
-        play();
-      });
-      stage.addEventListener("pointerup", endDrag);
-      stage.addEventListener("pointercancel", endDrag);
-      function endDrag() {
-        dragging = false;
-        stage.classList.remove("is-dragging");
-        play();
-      }
-    }
-
-    play();
-  }).catch(function () { plate.hidden = true; });
+  play();
 })();

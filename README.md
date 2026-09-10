@@ -31,6 +31,7 @@ Pages reference the generated `css/styles.min.css` and `js/main.min.js`. Edit th
 ├── js/main.js               Behavior source → main.min.js (generated)
 ├── tools/validate.js        Static-site integrity validator
 ├── assets/img/photos/       Photography: .webp served, .jpg masters kept
+├── assets/geo/              Natural Earth 110m coastlines for the footprints globe
 ├── assets/mahatrax/         Mahatrax sub-brand assets + brochure PDF
 ├── sitemap.xml robots.txt site.webmanifest
 └── .impeccable/             Detector config + design-system sidecar
@@ -82,6 +83,10 @@ ffmpeg -y -i assets\img\photos\<name>.jpg -c:v libwebp -quality 78 -compression_
 ```
 
 When adding a photo: drop the JPG in `assets/img/photos/`, generate the WebP, and reference the `.webp` in HTML (content images need descriptive `alt`; decorative hero art gets `aria-hidden="true"` and `alt=""`).
+
+### Globe coastlines
+
+`assets/geo/land-110m.json` is **Natural Earth 110m land (public domain)**, converted from the `world-atlas` TopoJSON into plain rings — `[polygon][ring][lng, lat]`, 3-decimal precision — and fetched lazily by the footprints plate on `index.html`. It is a one-time offline conversion (`world-atlas` + `topojson-client` in a scratch folder, never a runtime dependency); re-run it only to change scale or precision. 110m is ~26 KB gzipped, which is why it is used and 50m (~256 KB) is not. If the file is missing the plate still draws its graticule and site markers.
 
 ## Hosting requirements
 

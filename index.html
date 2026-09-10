@@ -338,6 +338,24 @@
           <figcaption class="caption" style="padding:12px 16px;">28 active locations — hover the pins or tap a location chip.</figcaption>
         </figure>
       </div>
+
+      <!-- Live globe plate — orthographic sphere drawn on 2D canvas from Natural
+           Earth coastlines (assets/geo/land-110m.json). Hidden only if the canvas
+           has no 2D context; if the coastline fetch fails it still draws the
+           graticule and the site markers. Either way it is an enrichment of the map
+           above, never the only way to read it. -->
+      <div class="col mt-xl" data-globe-plate>
+        <figure class="globe reveal">
+          <div class="globe__stage" data-globe-stage>
+            <canvas data-globe role="img" aria-label="Rotating globe centred on the Indonesian archipelago, with a marker at each active project site."></canvas>
+            <p class="globe__hint" aria-hidden="true">Drag to spin</p>
+          </div>
+          <figcaption class="globe__cap">
+            <span class="eyebrow">Footprints · Sphere</span>
+            <span class="caption">The same sites plotted on the globe — Sumatra to Halmahera, one marker per location. Release after a drag and it settles back to the archipelago.</span>
+          </figcaption>
+        </figure>
+      </div>
     </section>
 
     <!-- AWARDS TEASER -->

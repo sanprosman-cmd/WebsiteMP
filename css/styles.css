@@ -1596,7 +1596,7 @@ html.js .reveal-l.is-visible { opacity: 1; transform: none; }
 }
 
 /* ============================================================
-   FOOTPRINTS GLOBE — cobe WebGL plate (index.html)
+   FOOTPRINTS GLOBE — canvas sphere plate (index.html)
    Achromatic by contract: the sphere is lit in white/ink/grey only,
    the same register as the inline dossier map above it.
    ============================================================ */
@@ -1635,7 +1635,7 @@ html.js .reveal-l.is-visible { opacity: 1; transform: none; }
   pointer-events: none;
   background: radial-gradient(120% 120% at 50% 50%, transparent 52%, rgba(0,0,0,.6) 100%);
 }
-/* cobe reparents the canvas into a wrapper of its own, so size it by descendant */
+/* the canvas is sized by CSS and backed at device pixel ratio in js/main.js */
 .globe__stage canvas { position: relative; z-index: 1; display: block; width: 100%; height: 100%; }
 
 .globe__hint {
