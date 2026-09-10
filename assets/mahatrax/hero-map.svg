@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Live fleet map with geofence zones, haul routes and unit markers drawn as white lines on black">
+  <rect width="1600" height="900" fill="#000000"/>
+
+  <!-- graticule -->
+  <g stroke="#ffffff" stroke-opacity=".06">
+    <path d="M0,150 H1600 M0,300 H1600 M0,450 H1600 M0,600 H1600 M0,750 H1600"/>
+    <path d="M200,0 V900 M400,0 V900 M600,0 V900 M800,0 V900 M1000,0 V900 M1200,0 V900 M1400,0 V900"/>
+  </g>
+
+  <!-- geofence polygons -->
+  <g fill="none" stroke="#ffffff">
+    <path d="M240,220 L470,190 L520,320 L360,380 L215,330 Z" stroke-opacity=".5" stroke-dasharray="6 5"/>
+    <path d="M700,140 L940,170 L900,300 L720,280 Z" stroke-opacity=".42" stroke-dasharray="6 5"/>
+    <path d="M1150,260 L1420,230 L1460,420 L1200,450 Z" stroke-opacity=".5" stroke-dasharray="6 5"/>
+    <path d="M420,560 L760,520 L820,700 L500,760 L390,680 Z" stroke-opacity=".38" stroke-dasharray="6 5"/>
+    <path d="M1020,560 L1290,540 L1330,720 L1080,760 Z" stroke-opacity=".46" stroke-dasharray="6 5"/>
+    <path d="M620,780 L900,750 L930,880 L650,895" stroke-opacity=".34" stroke-dasharray="6 5"/>
+  </g>
+
+  <!-- zone labels -->
+  <g font-family="'D-DIN',Arial,sans-serif" font-size="12" letter-spacing="2.2" fill="#ffffff">
+    <text x="262" y="286" opacity=".65">PIT</text>
+    <text x="772" y="226" opacity=".6">LOADING</text>
+    <text x="1268" y="340" opacity=".62">DUMP HILL</text>
+    <text x="556" y="636" opacity=".58">HAULING ROAD</text>
+    <text x="1128" y="648" opacity=".6">WORKSHOP</text>
+    <text x="742" y="824" opacity=".55">PORT</text>
+  </g>
+
+  <!-- route polyline -->
+  <g fill="none" stroke="#ffffff" stroke-opacity=".85" stroke-width="1.6">
+    <path d="M355,278 C480,300 640,250 808,236 C1010,220 1180,300 1332,338"/>
+    <path d="M1332,338 C1240,470 1060,540 890,610 C740,668 620,690 545,705"/>
+    <path d="M545,705 C620,780 740,812 782,818"/>
+  </g>
+
+  <!-- waypoints -->
+  <g fill="#000000" stroke="#ffffff" stroke-width="1.6">
+    <circle cx="355" cy="278" r="6"/><circle cx="808" cy="236" r="6"/>
+    <circle cx="1332" cy="338" r="6"/><circle cx="890" cy="610" r="6"/>
+    <circle cx="545" cy="705" r="6"/><circle cx="782" cy="818" r="6"/>
+  </g>
+
+  <!-- live units -->
+  <g fill="#ffffff">
+    <circle cx="620" cy="258" r="3" opacity=".9"/><circle cx="1040" cy="270" r="3" opacity=".75"/>
+    <circle cx="1160" cy="430" r="3" opacity=".85"/><circle cx="760" cy="640" r="3" opacity=".8"/>
+    <circle cx="985" cy="588" r="3" opacity=".7"/><circle cx="660" cy="762" r="3" opacity=".8"/>
+  </g>
+
+  <!-- crosshair on primary unit -->
+  <g transform="translate(1040,270)" stroke="#ffffff" stroke-width="1.2" fill="none" stroke-opacity=".9">
+    <circle r="14"/><line x1="-22" y1="0" x2="-8" y2="0"/><line x1="8" y1="0" x2="22" y2="0"/>
+    <line x1="0" y1="-22" x2="0" y2="-8"/><line x1="0" y1="8" x2="0" y2="22"/>
+  </g>
+
+  <!-- telemetry annotations -->
+  <g font-family="'D-DIN',Arial,sans-serif" font-size="11" letter-spacing="2.2" fill="#ffffff">
+    <text x="1074" y="256" opacity=".55">DT-114 · 38 KM/H · LOADED 92T</text>
+    <text x="64" y="64" opacity=".4">SITE: KALIMANTAN EAST · GEOFENCE SYNC ≤6S</text>
+    <text x="1236" y="856" opacity=".4">LIVE MAP · UTC+7</text>
+  </g>
+
+  <rect x="0" y="830" width="1600" height="70" fill="#000000" opacity=".5"/>
+</svg>

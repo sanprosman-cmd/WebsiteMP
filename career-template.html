@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<!--
+  ================================================================
+  CAREER POST TEMPLATE — copy this file to create a new vacancy post
+  ================================================================
+  Steps:
+    1. Copy this file to: career-{slug}.html    (slug = lowercase, hyphens)
+    2. Find/replace all instances of:
+         {POST_TITLE}          → e.g. "Mechanical Supervisor"
+         {POST_SLUG}           → e.g. "mechanical-supervisor"
+         {POST_DEPARTMENT}     → e.g. "Engineering" | "HSE" | "Management" | "Operations"
+         {POST_EMPLOYMENT}     → e.g. "Full-time" | "Part-time" | "Contract"
+         {POST_LOCATION}       → e.g. "Site-based · Rokan Block"
+         {POST_DATE}           → e.g. "2026-09-15"
+         {POST_DATE_HUMAN}     → e.g. "15 September 2026"
+         {POST_CLOSES}         → e.g. "2026-12-31"
+         {POST_CLOSES_HUMAN}   → e.g. "31 December 2026"
+         {HERO_IMAGE}          → default: "assets/img/photos/plant-indonesia.jpg" (replace with a role-relevant photo)
+         {POST_SUMMARY}        → 1-2 sentence teaser shown in card & hero
+    3. Write the actual body inside the article.post-body element
+    4. (Optional) Drop a real JD PDF at assets/careers/jd-{slug}.pdf
+       and update the attachment link href.
+    5. Add a card link in careers.html grid AND add to sitemap.xml.
+    6. Run:  node tools/validate.js   — must print "ALL CHECKS PASSED"
+  ================================================================
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{POST_TITLE} — Careers | PT Maharani Prima</title>
+  <meta name="description" content="{POST_TITLE} vacancy at PT Maharani Prima — {POST_SUMMARY}">
+  <link rel="canonical" href="https://maharaniprima.com/career-{POST_SLUG}.html">
+  <meta name="theme-color" content="#000000">
+  <meta property="og:type" content="article">
+  <meta property="og:site_name" content="PT Maharani Prima">
+  <meta property="og:title" content="{POST_TITLE} — Careers | PT Maharani Prima">
+  <meta property="og:description" content="{POST_SUMMARY}">
+  <meta property="og:url" content="https://maharaniprima.com/career-{POST_SLUG}.html">
+  <meta property="og:image" content="https://maharaniprima.com/assets/img/og-image.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/svg+xml" href="assets/img/favicon.svg">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="assets/fonts/D-DIN-Bold.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/D-DIN.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="css/styles.min.css">
+  <script src="js/main.min.js" defer></script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://maharaniprima.com/" },
+          { "@type": "ListItem", "position": 2, "name": "Careers", "item": "https://maharaniprima.com/careers.html" },
+          { "@type": "ListItem", "position": 3, "name": "{POST_TITLE}", "item": "https://maharaniprima.com/career-{POST_SLUG}.html" }
+        ]
+      },
+      {
+        "@type": "JobPosting",
+        "title": "{POST_TITLE}",
+        "description": "{POST_SUMMARY}",
+        "datePosted": "{POST_DATE}",
+        "validThrough": "{POST_CLOSES}T23:59:59+07:00",
+        "employmentType": "FULL_TIME",
+        "hiringOrganization": {
+          "@type": "Organization",
+          "name": "PT Maharani Prima",
+          "sameAs": "https://maharaniprima.com/",
+          "logo": "https://maharaniprima.com/assets/img/New logo.png"
+        },
+        "jobLocation": {
+          "@type": "Place",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "{POST_LOCATION}",
+            "addressCountry": "ID"
+          }
+        },
+        "applicationContact": {
+          "@type": "ContactPoint",
+          "url": "https://tinyurl.com/Loker-MaharaniPrima",
+          "contactType": "Application Submission"
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="site-header__inner">
+      <a class="brand" href="index.html" aria-label="PT Maharani Prima — home">
+        <img src="assets/img/logo-transparent.png" alt="PT Maharani Prima" width="970" height="493">
+      </a>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="site-nav" aria-label="Toggle navigation">
+        <span></span><span></span><span></span>
+      </button>
+      <nav id="site-nav" class="site-nav" aria-label="Primary">
+        <ul>
+          <li><a href="company.html">Company</a></li>
+          <li class="mega-trigger">
+            <a href="capabilities.html" aria-haspopup="true">Capabilities</a>
+            <div class="mega-menu">
+              <a href="capabilities.html#mining" class="mega-menu__item">
+                <div class="mega-menu__icon"><svg viewBox="0 0 24 24"><path d="M2 16V8h11v8M13 10h4l3 3v3"/><circle cx="7" cy="18" r="2"/><circle cx="17" cy="18" r="2"/></svg></div>
+                <div class="mega-menu__text"><span class="mega-menu__title">Mining & Hauling</span><p>Excavation, hauling & road maintenance</p></div>
+              </a>
+              <a href="capabilities.html#wellpad" class="mega-menu__item">
+                <div class="mega-menu__icon"><svg viewBox="0 0 24 24"><path d="M9 21L12 3l3 18"/><path d="M9.7 14.5h4.6M8.9 9.5h6.2"/><path d="M4 21h16"/></svg></div>
+                <div class="mega-menu__text"><span class="mega-menu__title">Wellpad & Earth Works</span><p>Piling, rig foundation & mud pit</p></div>
+              </a>
+              <a href="capabilities.html#surface" class="mega-menu__item">
+                <div class="mega-menu__icon"><svg viewBox="0 0 24 24"><path d="M2 8h5v8H2zM17 8h5v8h-5z"/><path d="M7 12h3M14 12h3"/><circle cx="12" cy="12" r="2"/></svg></div>
+                <div class="mega-menu__text"><span class="mega-menu__title">Surface Facility</span><p>Oil & gas facility construction</p></div>
+              </a>
+              <a href="capabilities.html#transmission" class="mega-menu__item">
+                <div class="mega-menu__icon"><svg viewBox="0 0 24 24"><path d="M12 3v18"/><path d="M8 8l4 4 4-4"/><path d="M6 13l6 3 6-3"/><path d="M5 17h14"/><path d="M10 21l2-4 2 4"/></svg></div>
+                <div class="mega-menu__text"><span class="mega-menu__title">HV & MV Transmission</span><p>Power transmission lines</p></div>
+              </a>
+              <a href="capabilities.html#powerplant" class="mega-menu__item">
+                <div class="mega-menu__icon"><svg viewBox="0 0 24 24"><path d="M13 2L6 13h5l-2 9 7-11h-5l2-9z"/></svg></div>
+                <div class="mega-menu__text"><span class="mega-menu__title">Power Plant</span><p>Full EPC power generation</p></div>
+              </a>
+            </div>
+          </li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="projects.html">Projects</a></li>
+          <li><a href="careers.html">Careers</a></li>
+          <li><a href="contact.html">Contact</a></li>
+          <li><a class="btn btn--dark" href="contact.html">Get a Quote</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <section class="hero hero--sub band band--dark hero--photo">
+      <picture>
+        <source srcset="assets/img/photos/plant-indonesia.webp" type="image/webp">
+        <img class="hero__art" src="assets/img/photos/plant-indonesia.jpg" alt="" aria-hidden="true" fetchpriority="high" width="1600" height="1067">
+      </picture>
+      <div class="hero__scrim" aria-hidden="true"></div>
+      <div class="hero__content">
+        <nav aria-label="Breadcrumb">
+          <ol class="crumbs">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="careers.html">Careers</a></li>
+            <li><span aria-current="page">{POST_TITLE}</span></li>
+          </ol>
+        </nav>
+        <span class="eyebrow mt-md" style="display:block;">Vacancy · {POST_DEPARTMENT} · {POST_EMPLOYMENT}</span>
+        <h1 class="display-xxl">{POST_TITLE}</h1>
+        <p class="lead">{POST_SUMMARY}</p>
+      </div>
+    </section>
+
+    <section class="band band--soft pad-y">
+      <div class="col">
+        <div class="post-meta reveal">
+          <div class="post-meta__item"><span class="micro">Department</span><strong>{POST_DEPARTMENT}</strong></div>
+          <div class="post-meta__item"><span class="micro">Employment</span><strong>{POST_EMPLOYMENT}</strong></div>
+          <div class="post-meta__item"><span class="micro">Location</span><strong>{POST_LOCATION}</strong></div>
+          <div class="post-meta__item"><span class="micro">Posted</span><strong><time datetime="{POST_DATE}">{POST_DATE_HUMAN}</time></strong></div>
+          <div class="post-meta__item"><span class="micro">Closes</span><strong><time datetime="{POST_CLOSES}">{POST_CLOSES_HUMAN}</time></strong></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--dark pad-y hairline-t">
+      <div class="col">
+        <article class="post-body reveal">
+          <h2 class="display-lg">About the role</h2>
+          <p class="lead mt-md">Write 2-3 sentences describing the role, its impact and who it reports to.</p>
+
+          <h3 class="mt-xl">Responsibilities</h3>
+          <ul class="cap-list mt-md">
+            <li>First responsibility</li>
+            <li>Second responsibility</li>
+            <li>Third responsibility</li>
+          </ul>
+
+          <h3 class="mt-xl">Requirements</h3>
+          <ul class="cap-list mt-md">
+            <li>Degree / certification</li>
+            <li>Years of experience</li>
+            <li>Technical skills</li>
+          </ul>
+
+          <h3 class="mt-xl">What we offer</h3>
+          <ul class="cap-list mt-md">
+            <li>Benefit 1</li>
+            <li>Benefit 2</li>
+          </ul>
+
+          <!-- Optional inline image — 1600x900 recommended. Serve WebP + JPEG fallback via <picture>. -->
+          <figure class="post-figure mt-xl">
+            <picture>
+              <source srcset="assets/img/photos/plant-indonesia.webp" type="image/webp">
+              <img src="assets/img/photos/plant-indonesia.jpg" alt="Describe the image for accessibility" loading="lazy" width="1600" height="1067">
+            </picture>
+            <figcaption class="caption">Caption for the image.</figcaption>
+          </figure>
+        </article>
+      </div>
+    </section>
+
+    <section class="band band--soft pad-y hairline-t">
+      <div class="col">
+        <header class="section-head reveal">
+          <span class="eyebrow">Attachments</span>
+          <h2 class="display-lg">Documents for this role</h2>
+        </header>
+        <div class="attachment-list reveal">
+          <!-- To attach a real PDF: drop the file at assets/careers/jd-{POST_SLUG}.pdf and update href -->
+          <a class="attachment" href="assets/careers/jd-placeholder.pdf" download rel="noopener">
+            <span class="attachment__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            </span>
+            <span class="attachment__body">
+              <strong>Job Description (PDF)</strong>
+              <span class="caption">Replace with <code>assets/careers/jd-{POST_SLUG}.pdf</code>.</span>
+            </span>
+            <span class="attachment__cta" aria-hidden="true">↓</span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="band band--dark pad-y cta-band hairline-t">
+      <div class="col reveal">
+        <span class="eyebrow">Ready to apply?</span>
+        <h2 class="display-xl mt-sm">Submit your application</h2>
+        <p class="lead">Include your CV, cover note and any relevant certifications.</p>
+        <a class="btn btn--dark apply-cta" href="https://tinyurl.com/Loker-MaharaniPrima" target="_blank" rel="noopener">Apply for {POST_TITLE} <span class="btn__arrow" aria-hidden="true">↗</span></a>
+        <p class="caption mt-lg" style="color:rgba(255,255,255,.45);">Application link opens in a new tab · <a href="careers.html" style="color:inherit;">back to all vacancies</a></p>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div class="col">
+      <div class="site-footer__grid">
+        <div>
+          <span class="brand__word">Maharani Prima</span>
+          <p class="site-footer__blurb">EPCC project planning, management and execution across power, oil &amp; gas, and mining. On Schedule. On Budget. On Quality. On Safety.</p>
+        </div>
+        <nav aria-label="Footer">
+          <h3>Explore</h3>
+          <ul>
+            <li><a href="company.html">Company</a></li>
+            <li><a href="capabilities.html">Capabilities</a></li>
+            <li><a href="products.html">Products</a></li>
+            <li><a href="projects.html">Projects</a></li>
+            <li><a href="careers.html">Careers</a></li>
+            <li><a href="contact.html">Contact</a></li>
+          </ul>
+        </nav>
+        <div>
+          <h3>Contact</h3>
+          <address>
+            Email: <a href="mailto:admin@maharaniprima.com">admin@maharaniprima.com</a><br>
+            Phone: <a href="tel:+6281222470240">+62 812 2247 0240</a><br><br>
+            CIBIS Nine Business Park, 11th Floor<br>
+            Jl. TB Simatupang No.2, Cilandak Timur<br>
+            Jakarta Selatan 12560, Indonesia
+          </address>
+        </div>
+      </div>
+      <div class="site-footer__legal">
+        <span>&copy; <span id="year">2026</span> PT Maharani Prima. All rights reserved.</span>
+        <span><a href="privacy.html">Privacy &amp; Cookies</a> · <a href="terms.html">Terms</a> · <button type="button" class="legal-btn" data-cookie-settings>Cookie Settings</button></span>
+        <span>ISO 9001 · 14001 · 45001 · 37001</span>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

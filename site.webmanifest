@@ -1,0 +1,17 @@
+{
+  "name": "PT Maharani Prima — EPCC Contractor",
+  "short_name": "Maharani Prima",
+  "description": "World-class EPCC — project planning, management and execution across power, oil & gas, and mining in Indonesia.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "icons": [
+    {
+      "src": "assets/img/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

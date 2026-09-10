@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Night view of an open-pit mine rendered as white engineering contour lines with a haul truck on the ramp">
+  <defs>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity=".9"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="1600" height="900" fill="#000000"/>
+
+  <!-- stars -->
+  <g fill="#ffffff">
+    <circle cx="120" cy="90" r="1.1" opacity=".5"/><circle cx="310" cy="150" r=".8" opacity=".3"/>
+    <circle cx="480" cy="60" r="1.3" opacity=".6"/><circle cx="640" cy="130" r=".7" opacity=".25"/>
+    <circle cx="760" cy="80" r="1" opacity=".45"/><circle cx="905" cy="40" r=".9" opacity=".35"/>
+    <circle cx="1080" cy="110" r="1.2" opacity=".55"/><circle cx="1240" cy="70" r=".8" opacity=".3"/>
+    <circle cx="1390" cy="140" r="1" opacity=".4"/><circle cx="1520" cy="60" r="1.2" opacity=".5"/>
+    <circle cx="220" cy="230" r=".7" opacity=".25"/><circle cx="420" cy="200" r=".9" opacity=".3"/>
+    <circle cx="700" cy="190" r="1.1" opacity=".4"/><circle cx="980" cy="210" r=".8" opacity=".28"/>
+    <circle cx="1180" cy="180" r="1" opacity=".38"/><circle cx="1450" cy="240" r=".9" opacity=".3"/>
+    <circle cx="80" cy="320" r=".8" opacity=".22"/><circle cx="1560" cy="330" r=".8" opacity=".24"/>
+  </g>
+
+  <!-- horizon -->
+  <line x1="0" y1="300" x2="1600" y2="300" stroke="#ffffff" stroke-opacity=".14" stroke-width="1"/>
+
+  <!-- open-pit terraces: concentric irregular contours -->
+  <g fill="none" stroke="#ffffff">
+    <path d="M800,430 C1010,430 1180,470 1180,520 C1180,572 1000,610 800,610 C600,610 420,572 420,520 C420,470 590,430 800,430 Z" stroke-opacity=".34"/>
+    <path d="M800,470 C1060,470 1290,520 1290,585 C1290,652 1030,710 800,710 C570,710 310,652 310,585 C310,520 540,470 800,470 Z" stroke-opacity=".27"/>
+    <path d="M800,512 C1120,512 1420,575 1420,655 C1420,737 1090,815 800,815 C510,815 180,737 180,655 C180,575 480,512 800,512 Z" stroke-opacity=".2"/>
+    <path d="M800,556 C1190,556 1580,632 1580,730 C1580,760 1520,786 1440,808 M800,556 C410,556 20,632 20,730 C20,762 84,789 168,811" stroke-opacity=".14"/>
+    <!-- inner benches -->
+    <path d="M800,462 C960,462 1090,492 1090,530 C1090,570 950,596 800,596 C650,596 510,570 510,530 C510,492 640,462 800,462 Z" stroke-opacity=".42"/>
+    <path d="M800,492 C905,492 985,514 985,544 C985,575 900,594 800,594 C700,594 615,575 615,544 C615,514 695,492 800,492 Z" stroke-opacity=".52"/>
+    <ellipse cx="800" cy="548" rx="105" ry="26" stroke-opacity=".62"/>
+  </g>
+
+  <!-- haul road: switchback ramp from rim to pit floor -->
+  <g fill="none" stroke="#ffffff">
+    <path d="M-20,860 L340,780 L360,796 L20,884" stroke-opacity=".3"/>
+    <path d="M340,780 C520,738 640,700 662,668 L678,680 C654,716 528,756 360,796" stroke-opacity=".3"/>
+    <path d="M662,668 C700,616 720,596 762,580 L774,592 C736,610 716,630 678,680" stroke-opacity=".3"/>
+  </g>
+
+  <!-- haul truck on ramp -->
+  <g transform="translate(560,712) scale(1.15)">
+    <path d="M0,34 L0,10 L26,10 L38,-2 L86,-2 L86,34 Z" fill="none" stroke="#ffffff" stroke-opacity=".85" stroke-width="1.4"/>
+    <path d="M38,10 L38,34 M0,34 L86,34" stroke="#ffffff" stroke-opacity=".85" stroke-width="1.4" fill="none"/>
+    <circle cx="20" cy="38" r="7" fill="none" stroke="#ffffff" stroke-opacity=".85" stroke-width="1.4"/>
+    <circle cx="64" cy="38" r="7" fill="none" stroke="#ffffff" stroke-opacity=".85" stroke-width="1.4"/>
+    <rect x="2" y="13" width="8" height="6" fill="#ffffff" fill-opacity=".85"/>
+  </g>
+  <ellipse cx="636" cy="750" rx="26" ry="8" fill="url(#glow)" opacity=".5"/>
+  <circle cx="636" cy="748" r="2.4" fill="#ffffff" opacity=".95"/>
+
+  <!-- engineering annotations -->
+  <g font-family="'D-DIN',Arial,sans-serif" font-size="11" letter-spacing="2.4" fill="#ffffff">
+    <text x="64" y="392" opacity=".42">SECTOR 07 — HAUL ROAD B</text>
+    <text x="1216" y="392" opacity=".42">PIT-A · RL +485</text>
+    <text x="64" y="856" opacity=".3">GEOFENCE ACTIVE</text>
+    <text x="1284" y="856" opacity=".3">LIVE · 2,148 UNITS TRACKED</text>
+  </g>
+  <g stroke="#ffffff" stroke-opacity=".35">
+    <line x1="64" y1="404" x2="238" y2="404"/>
+    <line x1="1216" y1="404" x2="1350" y2="404"/>
+  </g>
+
+  <!-- bottom fade into page -->
+  <rect x="0" y="820" width="1600" height="80" fill="#000000" opacity=".55"/>
+</svg>

@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Schematic side view of a mining haul truck with numbered sensor callouts for ADAS, DMS, tracking, fuel, load and blind-spot systems">
+  <rect width="1600" height="900" fill="#000000"/>
+
+  <!-- faint blueprint grid -->
+  <g stroke="#ffffff" stroke-opacity=".05">
+    <path d="M0,112.5 H1600 M0,225 H1600 M0,337.5 H1600 M0,450 H1600 M0,562.5 H1600 M0,675 H1600 M0,787.5 H1600"/>
+    <path d="M100,0 V900 M200,0 V900 M300,0 V900 M400,0 V900 M500,0 V900 M600,0 V900 M700,0 V900 M800,0 V900 M900,0 V900 M1000,0 V900 M1100,0 V900 M1200,0 V900 M1300,0 V900 M1400,0 V900 M1500,0 V900"/>
+  </g>
+  <g stroke="#ffffff" stroke-opacity=".18">
+    <line x1="620" y1="812" x2="1520" y2="812"/>
+    <line x1="620" y1="806" x2="620" y2="818"/><line x1="900" y1="807" x2="900" y2="817"/>
+    <line x1="1200" y1="806" x2="1200" y2="818"/><line x1="1520" y1="806" x2="1520" y2="818"/>
+  </g>
+
+  <!-- haul truck schematic (side view), right half -->
+  <g transform="translate(640,330)" fill="none" stroke="#ffffff" stroke-width="2">
+    <!-- dump body -->
+    <path d="M60,60 L640,40 L668,180 L88,208 Z" stroke-opacity=".9"/>
+    <path d="M150,58 L172,196 M260,54 L280,192 M370,50 L388,189 M480,46 L498,186 M570,43 L590,183" stroke-opacity=".28"/>
+    <!-- chassis -->
+    <path d="M96,214 L652,190 L652,238 L92,262 Z" stroke-opacity=".9"/>
+    <!-- cab -->
+    <path d="M648,120 L742,108 L782,168 L774,232 L650,240 Z" stroke-opacity=".9"/>
+    <path d="M668,132 L730,124 L756,166 L664,174 Z" stroke-opacity=".45"/>
+    <!-- front grille -->
+    <path d="M774,232 L792,228 L798,180 L782,168" stroke-opacity=".9"/>
+    <!-- wheels -->
+    <circle cx="220" cy="272" r="64" stroke-opacity=".95"/>
+    <circle cx="220" cy="272" r="30" stroke-opacity=".55"/>
+    <line x1="220" y1="212" x2="220" y2="242" stroke-opacity=".35"/>
+    <circle cx="580" cy="252" r="64" stroke-opacity=".95"/>
+    <circle cx="580" cy="252" r="30" stroke-opacity=".55"/>
+    <line x1="580" y1="192" x2="580" y2="222" stroke-opacity=".35"/>
+    <!-- ground -->
+    <line x1="60" y1="360" x2="860" y2="348" stroke-opacity=".22"/>
+  </g>
+
+  <!-- callout nodes -->
+  <g font-family="'D-DIN',Arial,sans-serif" font-size="13" letter-spacing="2">
+    <g>
+      <line x1="1390" y1="460" x2="1390" y2="150" stroke="#ffffff" stroke-opacity=".45"/>
+      <circle cx="1390" cy="460" r="17" fill="#000000" stroke="#ffffff" stroke-width="1.4"/>
+      <text x="1390" y="465" fill="#ffffff" text-anchor="middle">01</text>
+    </g>
+    <g>
+      <line x1="1330" y1="490" x2="1330" y2="220" stroke="#ffffff" stroke-opacity=".45"/>
+      <circle cx="1330" cy="490" r="17" fill="#000000" stroke="#ffffff" stroke-width="1.4"/>
+      <text x="1330" y="495" fill="#ffffff" text-anchor="middle">02</text>
+    </g>
+    <g>
+      <line x1="1280" y1="520" x2="1280" y2="290" stroke="#ffffff" stroke-opacity=".45"/>
+      <circle cx="1280" cy="520" r="17" fill="#000000" stroke="#ffffff" stroke-width="1.4"/>
+      <text x="1280" y="525" fill="#ffffff" text-anchor="middle">03</text>
+    </g>
+    <g>
+      <line x1="880" y1="410" x2="700" y2="580" stroke="#ffffff" stroke-opacity=".45"/>
+      <circle cx="880" cy="410" r="17" fill="#000000" stroke="#ffffff" stroke-width="1.4"/>
+      <text x="880" y="415" fill="#ffffff" text-anchor="middle">06</text>
+    </g>
+    <g>
+      <line x1="780" y1="660" x2="560" y2="690" stroke="#ffffff" stroke-opacity=".45"/>
+      <circle cx="780" cy="660" r="17" fill="#000000" stroke="#ffffff" stroke-width="1.4"/>
+      <text x="780" y="665" fill="#ffffff" text-anchor="middle">05</text>
+    </g>
+    <g>
+      <line x1="700" y1="560" x2="480" y2="780" stroke="#ffffff" stroke-opacity=".45"/>
+      <circle cx="700" cy="560" r="17" fill="#000000" stroke="#ffffff" stroke-width="1.4"/>
+      <text x="700" y="565" fill="#ffffff" text-anchor="middle">04</text>
+    </g>
+  </g>
+
+  <!-- header annotations -->
+  <g font-family="'D-DIN',Arial,sans-serif" font-size="11" letter-spacing="2.4" fill="#ffffff">
+    <text x="640" y="826" opacity=".4">UNIT: HD 785 CLASS · REV C</text>
+    <text x="1520" y="826" opacity=".4" text-anchor="end">01/01</text>
+  </g>
+
+  <rect x="0" y="836" width="1600" height="64" fill="#000000" opacity=".55"/>
+</svg>
