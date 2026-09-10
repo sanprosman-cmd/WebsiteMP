@@ -731,8 +731,23 @@
 
 /* Footprints globe — a hand-rolled orthographic sphere on 2D canvas.
 
-   Coastline geometry is Natural Earth 110m land (public domain), converted
-   offline into a compact ring array at assets/geo/land-110m.json.
+   Geometry is Natural Earth 1:50m (public domain), reduced offline by
+   tools/_geo/build-earth.js into assets/geo/earth-50m.json. Raw 50m is 60,629
+   vertices and the renderer traces land twice a frame; measured on this plate
+   that is 8.92ms of trig alone, over half a 16.7ms frame before anything is
+   rasterised. So the coastline is simplified against a vertex budget with three
+   times the fidelity inside the archipelago, and each polygon carries a bounding
+   cap that lets draw() skip it with one cosine when it is over the horizon.
+
+   Three layers, because the plate has to answer "where is this site":
+     land    the union coastline, so adjacent countries share an edge exactly
+     border  interior admin-0 boundaries from the topological mesh — the only
+             thing on the sphere that says which country a marker is standing in
+     idn     Indonesia lifted out of the country layer and drawn brighter, since
+             every site here is in it and the coastline alone does not say so
+   Borneo and New Guinea are single merged polygons in the union layer, so
+   Indonesia is overlaid rather than cut out; the shared vertex budget keeps the
+   two traces in agreement.
 
    There is deliberately no globe library here. The WebGL option we tried first
    drew its land mask from a texture address book that disagrees with how it
@@ -743,7 +758,8 @@
    through the same function, so they cannot drift apart.
 
    The plate is an enrichment of the inline dossier map above it. If the
-   geometry fetch fails the graticule and the site markers still draw. */
+   geometry fetch fails the graticule, the place names and the site markers all
+   still draw — the names are copy, not geometry, so they never depend on it. */
 (function () {
   "use strict";
 
@@ -795,8 +811,42 @@
 
   var RAD = Math.PI / 180;
   var TAU = Math.PI * 2;
-  var LAND = null;          // polygons -> rings -> [lng, lat]
+  /* { land, idn, border } — each an array of [cap, rings], rings -> [lng, lat].
+     cap is [sinLat0, cosLat0, lng0, -sin(rho)]: the bounding sphere the far-side
+     cull tests against the view centre. Borders wrap a single open line in the
+     same ring shape so one walker serves all three layers. */
+  var GEO = null;
   var geoRequested = false;
+
+  /* Place names, so a marker reads as somewhere instead of as a dot. The island
+     set matches the dossier map above the plate; the continent set only switches
+     on well into the disc, so dragging away from the archipelago still gives
+     orientation without crowding the resting view.
+     [lat, lng, text, tier] — tier indexes LABEL_TIER in drawLabels. */
+  var LABELS = [
+    [-1.5, 117.0, "INDONESIA", 0],
+    [0.4, 101.7, "SUMATRA", 1],
+    [-7.5, 110.4, "JAVA", 1],
+    [-2.1, 121.4, "SULAWESI", 1],
+    [-4.0, 138.5, "PAPUA", 1],
+    [3.7, 102.3, "MALAYSIA", 1],
+    [12.8, 122.5, "PHILIPPINES", 1],
+    [-6.6, 145.0, "PNG", 1],
+    [34.0, 90.0, "ASIA", 2],
+    [2.0, 20.0, "AFRICA", 2],
+    [50.0, 15.0, "EUROPE", 2],
+    [-25.5, 134.0, "AUSTRALIA", 2],
+    [-76.0, 120.0, "ANTARCTICA", 2]
+  ];
+
+  /* size / weight / peak alpha / the facing at which the name starts to appear.
+     minV is a horizon guard: a label near the limb would be squeezed into the
+     shading and read as noise, so it fades in only once the surface turns to us. */
+  var LABEL_TIER = [
+    { size: 11, weight: 700, alpha: 0.52, minV: 0.30, track: 2.4 },
+    { size: 8.5, weight: 400, alpha: 0.30, minV: 0.42, track: 1.5 },
+    { size: 10.5, weight: 700, alpha: 0.16, minV: 0.64, track: 3.2 }
+  ];
 
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
@@ -870,15 +920,67 @@
   }
 
   /* Coastline: only the segments genuinely in view. The chords that close the
-     fill are construction seams, not coast, so they never get drawn. */
-  function traceCoast(ring, R, c) {
-    var n = projectRing(ring, c), k, j, pen = false;
-    for (k = 0; k < n; k++) {
+     fill are construction seams, not coast, so they never get drawn.
+
+     closed=false for the border layer — an admin boundary is an open line, and
+     joining its last vertex back to its first would draw a chord across a country. */
+  function traceCoast(ring, R, c, closed) {
+    var n = projectRing(ring, c), k, j, last = closed ? n : n - 1, pen = false;
+    for (k = 0; k < last; k++) {
       j = k + 1 === n ? 0 : k + 1;
       if (BV[k] < 0 || BV[j] < 0) { pen = false; continue; }
       if (!pen) { ctx.moveTo(BX[k] * R, BY[k] * R); pen = true; }
       ctx.lineTo(BX[j] * R, BY[j] * R);
     }
+  }
+
+  /* Named once rather than as closures at the call site: these run five times a
+     frame, and an arrow literal there would allocate sixty times a second. */
+  function coastClosed(ring, R, c) { traceCoast(ring, R, c, true); }
+  function coastOpen(ring, R, c) { traceCoast(ring, R, c, false); }
+
+  /* Walk one layer, skipping every polygon whose bounding cap is over the
+     horizon. One cosine per polygon stands in for projecting each of its
+     vertices, which at 50m is the difference between tracing the whole planet
+     and tracing the half of it that can be seen. The cap is conservative: it
+     keeps some polygons that are actually hidden, and build-earth.js checks at
+     every centre the rotation can reach that it never drops one that is not. */
+  function traceLayer(list, R, c, trace) {
+    if (!list) return;
+    var sl = Math.sin(c.lat * RAD), cl = Math.cos(c.lat * RAD), k, j, cap, rings;
+    for (k = 0; k < list.length; k++) {
+      cap = list[k][0];
+      if (cap[0] * sl + cap[1] * cl * Math.cos((cap[2] - c.lng) * RAD) < cap[3]) continue;
+      rings = list[k][1];
+      for (j = 0; j < rings.length; j++) trace(rings[j], R, c);
+    }
+  }
+
+  /* Place names ride the sphere — projected like everything else, so they turn
+     with a drag and hold still over the land they name. They fade out as they
+     approach the limb and are drawn under the shading and under the markers: the
+     dossier map above sets its island names at the same recessive weight, and a
+     name must never outrank the site it is sitting next to. */
+  function drawLabels(c, R) {
+    var canTrack = "letterSpacing" in ctx, i, s, tier, v, a;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#fff";
+    for (i = 0; i < LABELS.length; i++) {
+      s = LABELS[i];
+      tier = LABEL_TIER[s[3]];
+      project(s[0], s[1], c, P);
+      v = P.v;
+      if (v < tier.minV) continue;
+      /* ramp to full over the first 40% of the way from horizon to centre */
+      a = tier.alpha * clamp((v - tier.minV) / (0.4 * (1 - tier.minV)), 0, 1);
+      ctx.globalAlpha = a;
+      ctx.font = tier.weight + " " + tier.size + 'px "D-DIN", Arial, sans-serif';
+      if (canTrack) ctx.letterSpacing = tier.track + "px";
+      ctx.fillText(s[2], P.x * R, P.y * R);
+    }
+    ctx.globalAlpha = 1;
+    if (canTrack) ctx.letterSpacing = "0px";
   }
 
   /* Parallels every 30° and meridians every 30°, drawn only where the surface
@@ -905,13 +1007,16 @@
     }
   }
 
-  var dpr = 1, W = 0, H = 0, R = 0, degPerPx = 1;
+  var dpr = 1, W = 0, H = 0, R = 0, degPerPx = 1, expensive = false;
 
   function resize() {
     var w = stage.clientWidth, h = stage.clientHeight;
     if (!w || !h) return;
-    /* capped at 2: the plate is redrawn every frame and a 3× buffer would put
-       more pixels through the path than the motion is worth */
+    /* Capped at 2 because a 3x buffer is never worth it, and never capped below
+       the device's own ratio. This plate exists to show coastlines and interior
+       boundaries as hairlines, and a reduced buffer is the one thing that turns
+       them back into mush. The frame cost is paid in cadence instead — see
+       `expensive` below. */
     dpr = Math.min(window.devicePixelRatio || 1, 2);
     W = w; H = h;
     canvas.width = Math.round(w * dpr);
@@ -922,12 +1027,25 @@
        one pointer pixel is worth 1/R radians of surface. The obvious 90/R — a
        quarter turn per radius — measures 1.55x too fast. */
     degPerPx = (180 / Math.PI) / R;
+    /* Rasterising the disc dominates the frame cost and grows with the buffer
+       ratio squared, so the budget is counted in device pixels of disc rather
+       than in CSS size — a phone at 2x and a retina laptop at 2x are the same
+       problem even though their plates differ threefold. Measured on identical
+       geometry, full cadence: 135k and 212k device pixels hold 16.7ms a frame,
+       235k lose one vsync in three, 305k one in seven, 542k every other one.
+       The ceiling also depends on the page around the plate — 212k was clean in
+       a desktop viewport and 235k was not in a phone one — so the budget sits
+       below the lowest measured failure rather than at the highest measured
+       success. Above it the ambient wander draws every other vsync; drags, the
+       arrival turn-in and the settle-back keep all of them (see frame). */
+    var Rd = R * dpr;
+    expensive = Math.PI * Rd * Rd > 200000;
   }
 
   function draw(c) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
-    var cx = W / 2, cy = H / 2, i, j, s;
+    var cx = W / 2, cy = H / 2, s;
 
     /* body — lit slightly high and left so it reads as a sphere, not a disc */
     var body = ctx.createRadialGradient(cx - R * 0.34, cy - R * 0.4, R * 0.1, cx, cy, R);
@@ -948,18 +1066,51 @@
     drawGraticule(c);
     ctx.stroke();
 
-    if (LAND) {
-      /* land — lifted to roughly --hairline-dark so white markers stay dominant */
+    if (GEO) {
+      /* Land sits a step under --hairline-dark so the white markers stay the
+         loudest thing on the plate. */
       ctx.beginPath();
-      for (i = 0; i < LAND.length; i++) for (j = 0; j < LAND[i].length; j++) traceFill(LAND[i][j], R, c);
-      ctx.fillStyle = "#343437";
+      traceLayer(GEO.land, R, c, traceFill);
+      ctx.fillStyle = "#2f2f34";
       ctx.fill("evenodd");
+
+      /* Indonesia lifted above it. Every site on this globe is in the country,
+         and a coastline — however detailed — does not say so on its own. Drawn
+         over the union layer rather than cut out of it, because Borneo and New
+         Guinea are single merged polygons there. */
       ctx.beginPath();
-      for (i = 0; i < LAND.length; i++) for (j = 0; j < LAND[i].length; j++) traceCoast(LAND[i][j], R, c);
-      ctx.strokeStyle = "rgba(255,255,255,.14)";
-      ctx.lineWidth = 0.75;
+      traceLayer(GEO.idn, R, c, traceFill);
+      ctx.fillStyle = "#4e4e57";
+      ctx.fill("evenodd");
+
+      /* Coastline first, then interior boundaries over it at a lighter weight.
+         The interior lines are what answers "which country is this site in":
+         the coast only says land. */
+      ctx.beginPath();
+      traceLayer(GEO.land, R, c, coastClosed);
+      traceLayer(GEO.idn, R, c, coastClosed);
+      ctx.strokeStyle = "rgba(255,255,255,.17)";
+      ctx.lineWidth = 0.7;
+      ctx.stroke();
+
+      ctx.beginPath();
+      traceLayer(GEO.border, R, c, coastOpen);
+      ctx.strokeStyle = "rgba(255,255,255,.26)";
+      ctx.lineWidth = 0.65;
+      ctx.stroke();
+
+      /* Indonesia's own outline, brightest of the three */
+      ctx.beginPath();
+      traceLayer(GEO.idn, R, c, coastClosed);
+      ctx.strokeStyle = "rgba(255,255,255,.44)";
+      ctx.lineWidth = 0.85;
       ctx.stroke();
     }
+
+    /* Names sit under the limb shading, so a label turning away darkens with the
+       surface it is printed on. They are copy, not geometry: they still draw when
+       the fetch fails. */
+    drawLabels(c, R);
 
     /* limb darkening, so the edge of the disc reads as curvature. Graded hard:
        it also carries the horizon cuts that traceFill has to close with a chord. */
@@ -999,12 +1150,23 @@
   if (!reduced) { cur.lng -= 26; cur.lat += 8; }   // turns into frame on arrival
 
   var dragging = false, onScreen = false, raf = null, prev = 0, t0 = 0, lastX = 0, lastY = 0;
+  var lag = 99;                    // degrees still to cover; 99 keeps the first frame at full cadence
 
   function play() { if (raf === null && onScreen) raf = requestAnimationFrame(frame); }
 
   function frame(now) {
     raf = null;
     if (!onScreen) return;
+    /* Half cadence on an expensive disc: draw every other vsync so each drawn
+       frame has a 33ms budget instead of 16.7ms. prev is deliberately left stale
+       so the next drawn frame eases over the whole skipped interval.
+       Gated on lag because only the ambient wander is cheap enough to halve. At
+       its peak the wander moves the surface 0.16px a frame at 30fps, which is not
+       visible; the arrival turn-in and the settle-back after a drag cover tens of
+       degrees and would step by 17px. They keep every vsync until they decay
+       inside 1.5 degrees, a band the wander's own steady-state lag of about 0.4
+       degrees never leaves. */
+    if (expensive && !dragging && !reduced && lag < 1.5 && prev && now - prev < 30) { play(); return; }
     if (!t0) t0 = now;
     var dt = prev ? clamp((now - prev) / 1000, 0.004, 0.1) : 0.016;
     var t = (now - t0) / 1000;
@@ -1026,6 +1188,7 @@
     var k = reduced ? 1 : 1 - Math.exp(-dt * 3.4);
     cur.lng += (goalLng - cur.lng) * k;
     cur.lat += (goalLat - cur.lat) * k;
+    lag = Math.max(Math.abs(goalLng - cur.lng), Math.abs(goalLat - cur.lat));
 
     draw(cur);
 
@@ -1039,13 +1202,13 @@
   function loadGeometry() {
     if (geoRequested || !window.fetch) return;
     geoRequested = true;
-    fetch(new URL("assets/geo/land-110m.json", document.baseURI).href)
+    fetch(new URL("assets/geo/earth-50m.json", document.baseURI).href)
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (d) {
-        if (d && d.length) LAND = d;
+        if (d && d.land && d.land.length) GEO = d;
         play();                       // the loop may already have parked at its pose
       })
-      .catch(function () { /* graticule and markers alone still read */ });
+      .catch(function () { /* graticule, names and markers alone still read */ });
   }
 
   if ("IntersectionObserver" in window) {
@@ -1064,6 +1227,13 @@
     new ResizeObserver(function () { resize(); draw(cur); }).observe(stage);
   } else {
     window.addEventListener("resize", function () { resize(); draw(cur); });
+  }
+
+  /* The place names are set in D-DIN. If the face lands after the first paint the
+     loop would go on drawing them in the fallback, and under reduced motion the
+     loop has already parked — so ask for one more frame once fonts settle. */
+  if (document.fonts && document.fonts.ready && document.fonts.ready.then) {
+    document.fonts.ready.then(function () { play(); });
   }
 
   if (window.PointerEvent) {
