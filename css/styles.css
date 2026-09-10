@@ -1487,3 +1487,185 @@ html.js .reveal-l.is-visible { opacity: 1; transform: none; }
 .attachment__cta { margin-left: auto; color: rgba(255, 255, 255, .7); }
 .post-figure { margin: 0; }
 .post-figure img { width: 100%; height: auto; display: block; border: 1px solid var(--hairline-dark); }
+
+/* ============================================================
+   SITE RECORD DECK — slide-deck card gallery (projects.html)
+   Plates behave like prints stacked on a desk: the deck runs
+   right-to-left, the front plate leaves to the left the way it
+   arrived. Position is a data attribute set by JS and every state
+   is a transition, so hammering the arrows retargets instead of
+   queueing. Only transform and opacity animate.
+   ============================================================ */
+.deck {
+  --deck-peek: clamp(34px, 8vw, 118px);   /* gutter the stack peeks into */
+  --deck-move: 460ms;                     /* plate travel: large surface, marketing tier */
+  --deck-fade: 320ms;
+  margin-top: clamp(32px, 5vw, 56px);
+}
+.deck__stage {
+  position: relative;
+  aspect-ratio: 3 / 2;
+  margin-top: clamp(28px, 3vw, 44px);     /* headroom for the fanned corners */
+}
+.deck__slide {
+  position: absolute; top: 0; right: var(--deck-peek); bottom: 0; left: 0;
+  margin: 0; overflow: hidden; background: var(--canvas-night);
+  border: 1px solid var(--hairline-dark); border-radius: var(--r-sm);
+  opacity: 0; pointer-events: none;
+  transition:
+    transform var(--deck-move) var(--ease-in-out),
+    opacity var(--deck-fade) var(--ease-out);
+}
+.deck__slide img { width: 100%; height: 100%; object-fit: cover; object-position: center; }
+.deck__slide[data-pos="0"] {
+  transform: translate3d(0, 0, 0) scale(1); opacity: 1;
+  z-index: 10; pointer-events: auto;
+  border-color: rgba(255,255,255,.22);
+}
+/* leaving — mirrors the arrival path, so the deck reads as one conveyor */
+.deck__slide[data-pos="-1"] { transform: translate3d(-46%, 0, 0) scale(.93) rotate(-2.4deg); opacity: 0; z-index: 12; }
+.deck__slide[data-pos="-2"] { transform: translate3d(-112%, 0, 0) scale(.86) rotate(-4deg); opacity: 0; z-index: 1; }
+/* in the stack, nearest first */
+.deck__slide[data-pos="1"] { transform: translate3d(5.2%, 0, 0) scale(.955) rotate(.7deg); opacity: .5; z-index: 9; }
+.deck__slide[data-pos="2"] { transform: translate3d(9.4%, 0, 0) scale(.915) rotate(1.2deg); opacity: .28; z-index: 8; }
+.deck__slide[data-pos="3"] { transform: translate3d(12.6%, 0, 0) scale(.885) rotate(1.6deg); opacity: .14; z-index: 7; }
+.deck__slide[data-pos="4"] { transform: translate3d(14.6%, 0, 0) scale(.865) rotate(1.8deg); opacity: 0; z-index: 6; }
+.deck__slide[data-pos="5"] { transform: translate3d(16%, 0, 0) scale(.85) rotate(2deg); opacity: 0; z-index: 5; }
+.deck__num {
+  position: absolute; top: 0; left: 0;
+  padding: 6px 12px 7px; background: rgba(0,0,0,.72);
+  border-inline-end: 1px solid var(--hairline-dark); border-block-end: 1px solid var(--hairline-dark);
+  border-start-start-radius: var(--r-sm);
+  font-size: 11px; font-weight: 700; letter-spacing: 1.2px;
+  color: rgba(255,255,255,.75);
+}
+
+.deck__bar {
+  display: flex; align-items: flex-end; gap: var(--sp-xl);
+  margin-top: var(--sp-xxl); padding-top: var(--sp-xl);
+  border-top: 1px solid var(--hairline-dark);
+}
+.deck__caption { display: grid; flex: 1 1 auto; min-width: 0; }
+.deck__cap { grid-area: 1 / 1; display: flex; flex-direction: column; gap: 6px; transform: translateY(8px); opacity: 0; pointer-events: none; transition: transform var(--deck-fade) var(--ease-out), opacity var(--deck-fade) var(--ease-out); }
+.deck__cap.is-current { opacity: 1; transform: none; }
+.deck__cap-cat { font-size: 11px; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,255,255,.58); }
+.deck__cap-text { font-size: var(--body-lg); line-height: 1.6; letter-spacing: .32px; color: var(--on-primary-mute); }
+.deck__navs { display: flex; gap: 10px; flex: 0 0 auto; }
+.deck__nav {
+  width: 48px; height: 48px; display: grid; place-items: center;
+  border: 1px solid var(--hairline-dark); border-radius: var(--r-pill);
+  color: rgba(255,255,255,.75); background: transparent; cursor: pointer;
+  transition: color .2s ease, border-color .2s ease, background-color .2s ease, transform .2s var(--ease-out);
+}
+.deck__nav svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.deck__nav:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+.deck__nav:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }
+
+.deck__rail {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  margin-top: var(--sp-xl); padding-top: var(--sp-xl);
+  border-top: 1px solid var(--hairline-dark); list-style: none;
+}
+.deck__rail > li { flex: 1 1 44px; }
+.deck__dot {
+  width: 100%; min-height: 44px; display: grid; place-items: center;
+  border: 1px solid var(--hairline-dark); border-radius: var(--r-pill);
+  font-size: 11px; letter-spacing: .96px; text-transform: uppercase;
+  color: rgba(255,255,255,.58); background: transparent; cursor: pointer;
+  transition: color .2s ease, border-color .2s ease, background-color .2s ease;
+}
+.deck__dot:hover { color: #fff; border-color: rgba(255,255,255,.5); }
+.deck__dot[aria-current="true"] { background: #fff; border-color: #fff; color: var(--canvas-night); font-weight: 700; }
+
+@media (hover: hover) and (pointer: fine) {
+  .deck__nav:hover { transform: translateY(-2px); }
+}
+@media (max-width: 860px) {
+  /* a 4:3 frame matches the plates' own ratio, so nothing is cropped here */
+  .deck { --deck-peek: 24px; }
+  .deck__stage { aspect-ratio: 4 / 3; margin-top: 24px; }
+  .deck__bar { flex-direction: column; align-items: stretch; gap: var(--sp-lg); }
+  .deck__navs { justify-content: flex-end; }
+}
+@media (prefers-reduced-motion: reduce) {
+  /* fewer and gentler: the deck stops travelling and simply cross-fades in place */
+  .deck__slide[data-pos] { transform: none; opacity: 0; transition: opacity var(--motion-fast) linear; }
+  .deck__slide[data-pos="0"] { opacity: 1; }
+  .deck__cap { transform: none; transition: opacity var(--motion-fast) linear; }
+  .deck__nav:hover { transform: none; }
+}
+
+/* ============================================================
+   FOOTPRINTS GLOBE — cobe WebGL plate (index.html)
+   Achromatic by contract: the sphere is lit in white/ink/grey only,
+   the same register as the inline dossier map above it.
+   ============================================================ */
+.globe { margin: 0; }
+
+.globe__stage {
+  position: relative;
+  height: clamp(320px, 44vw, 520px);
+  overflow: hidden;
+  background: radial-gradient(115% 95% at 50% 46%, #111114 0%, var(--canvas-night-soft) 58%, #070708 100%);
+  border: 1px solid var(--hairline-dark);
+  border-radius: var(--r-sm);
+  cursor: grab;
+  user-select: none;
+  /* a drag that starts on the sphere must not steal the page's vertical scroll */
+  touch-action: pan-y;
+}
+.globe__stage.is-dragging { cursor: grabbing; }
+
+/* graticule behind the sphere — same hairline weight as the map's own grid */
+.globe__stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image:
+    repeating-linear-gradient(to right, rgba(255,255,255,.045) 0 1px, transparent 1px 56px),
+    repeating-linear-gradient(to bottom, rgba(255,255,255,.045) 0 1px, transparent 1px 56px);
+}
+/* corner falloff, so the plate reads as a lens set into the page */
+.globe__stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(120% 120% at 50% 50%, transparent 52%, rgba(0,0,0,.6) 100%);
+}
+/* cobe reparents the canvas into a wrapper of its own, so size it by descendant */
+.globe__stage canvas { position: relative; z-index: 1; display: block; width: 100%; height: 100%; }
+
+.globe__hint {
+  position: absolute;
+  left: 14px;
+  bottom: 12px;
+  z-index: 3;
+  margin: 0;
+  padding: 4px 10px 5px;
+  font-size: 10px; font-weight: 700; line-height: 1.4;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  color: rgba(255,255,255,.72);
+  background: rgba(0,0,0,.62);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: var(--r-pill);
+  pointer-events: none;
+  transition: opacity var(--motion-base) var(--ease-out);
+}
+.globe__stage.is-touched .globe__hint { opacity: 0; }
+
+.globe__cap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 18px; margin-top: var(--sp-lg); }
+.globe__cap .eyebrow { flex: 0 0 auto; }
+.globe__cap .caption { flex: 1 1 46ch; max-width: 78ch; }
+
+@media (max-width: 860px) {
+  .globe__stage { height: clamp(300px, 88vw, 420px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* the sphere holds its pose and only answers to the pointer */
+  .globe__stage { cursor: default; }
+  .globe__hint { transition: opacity var(--motion-fast) linear; }
+}

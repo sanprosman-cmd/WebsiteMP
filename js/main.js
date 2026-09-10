@@ -491,6 +491,83 @@
     applyFilter("all");
   }
 
+  /* ---------- site record deck ---------- */
+  var deck = document.querySelector("[data-deck]");
+  if (deck) {
+    var deckSlides = [].slice.call(deck.querySelectorAll(".deck__slide"));
+    var deckCaps = [].slice.call(deck.querySelectorAll(".deck__cap"));
+    var deckDots = [].slice.call(deck.querySelectorAll("[data-deck-go]"));
+    var deckStage = deck.querySelector("[data-deck-stage]");
+    var deckStatus = deck.querySelector("[data-deck-status]");
+    var deckTotal = deckSlides.length;
+    var deckAt = 0;
+
+    /* Slot relative to the front plate, wrapped so the shortest path is taken.
+       Negative = already dealt off to the left; positive = still in the stack.
+       Only seven slots are ever styled, so anything further out parks one slot
+       beyond the visible range and stays invisible. */
+    function deckSlot(i) {
+      var d = i - deckAt;
+      if (d > deckTotal / 2) d -= deckTotal;
+      if (d < -deckTotal / 2) d += deckTotal;
+      return Math.max(-2, Math.min(5, d));
+    }
+
+    function deckRender() {
+      deckSlides.forEach(function (slide, i) {
+        var d = deckSlot(i);
+        slide.setAttribute("data-pos", String(d));
+        slide.setAttribute("aria-hidden", d === 0 ? "false" : "true");
+      });
+      deckCaps.forEach(function (cap, i) { cap.classList.toggle("is-current", i === deckAt); });
+      deckDots.forEach(function (dot, i) {
+        if (i === deckAt) dot.setAttribute("aria-current", "true");
+        else dot.removeAttribute("aria-current");
+      });
+      if (deckStage) deckStage.setAttribute("aria-label", "Field photographs, plate " + (deckAt + 1) + " of " + deckTotal);
+      if (deckStatus && deckCaps[deckAt]) {
+        deckStatus.textContent = "Plate " + (deckAt + 1) + " of " + deckTotal + " — " +
+          deckCaps[deckAt].textContent.replace(/\s+/g, " ").trim();
+      }
+    }
+
+    function deckGo(i) {
+      deckAt = (i + deckTotal) % deckTotal;
+      deckRender();
+    }
+
+    deck.addEventListener("click", function (e) {
+      var jump = e.target.closest("[data-deck-go]");
+      if (jump) { deckGo(Number(jump.dataset.deckGo)); return; }
+      if (e.target.closest("[data-deck-prev]")) { deckGo(deckAt - 1); return; }
+      if (e.target.closest("[data-deck-next]")) { deckGo(deckAt + 1); }
+    });
+
+    if (deckStage) {
+      deckStage.addEventListener("keydown", function (e) {
+        if (e.key === "ArrowRight") { e.preventDefault(); deckGo(deckAt + 1); }
+        else if (e.key === "ArrowLeft") { e.preventDefault(); deckGo(deckAt - 1); }
+      });
+
+      /* swipe on touch pointers only — on a desktop the drag belongs to the reader */
+      if (window.matchMedia("(pointer: coarse)").matches) {
+        var sx = 0, sy = 0, tracking = false;
+        deckStage.addEventListener("touchstart", function (e) {
+          var t = e.changedTouches[0]; sx = t.clientX; sy = t.clientY; tracking = true;
+        }, { passive: true });
+        deckStage.addEventListener("touchend", function (e) {
+          if (!tracking) return;
+          tracking = false;
+          var t = e.changedTouches[0];
+          var dx = t.clientX - sx, dy = t.clientY - sy;
+          if (Math.abs(dx) > 44 && Math.abs(dx) > Math.abs(dy) * 1.4) deckGo(deckAt + (dx < 0 ? 1 : -1));
+        }, { passive: true });
+      }
+    }
+
+    deckRender();
+  }
+
   /* ---------- capabilities scrollspy ---------- */
   var spyTabs = document.querySelectorAll(".spy-tab");
   if (spyTabs.length) {
@@ -647,4 +724,179 @@
     wrap.classList.remove("is-playing");
     video.removeAttribute("controls");
   });
+})();
+
+/* Footprints globe — cobe (MIT, vendored at js/vendor/cobe.esm.js).
+   The shader module is pulled in with a dynamic import so no other page pays
+   for it, and the plate hides itself when the import or WebGL fails: the
+   hairline map above stays the source of truth either way. */
+(function () {
+  "use strict";
+
+  var plate = document.querySelector("[data-globe-plate]");
+  var stage = plate && plate.querySelector("[data-globe-stage]");
+  var canvas = plate && plate.querySelector("[data-globe]");
+  if (!plate || !stage || !canvas) return;
+
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* The active sites the dossier names, as [lat, lng, marker size] —
+     the head office carries the larger dot. */
+  var SITES = [
+    [-6.200, 106.817, 0.030], // Jakarta · HQ
+    [5.171, 97.208, 0.015],   // Lhoksukon
+    [1.681, 101.446, 0.015],  // Dumai
+    [1.683, 101.383, 0.015],  // Duri
+    [-2.050, 103.900, 0.015], // Grissik
+    [-4.250, 104.050, 0.015], // Lumut Balai
+    [-0.026, 109.343, 0.015], // Pontianak
+    [-2.850, 110.867, 0.015], // Sukamara
+    [-2.683, 112.183, 0.015], // Kuala Pambuang
+    [-5.700, 110.500, 0.015], // Karimun Jawa
+    [-6.320, 107.230, 0.015], // Klari
+    [-6.717, 108.583, 0.015], // Cirebon
+    [-6.915, 107.610, 0.015], // Bandung
+    [-7.083, 107.633, 0.015], // Pangalengan
+    [-7.200, 109.917, 0.015], // Dieng
+    [-7.246, 112.738, 0.015], // Surabaya
+    [-7.150, 112.650, 0.015], // Gresik
+    [-7.633, 112.933, 0.015], // Pasuruan
+    [-8.500, 115.250, 0.015], // Bali
+    [-8.650, 116.320, 0.015], // Lombok
+    [-8.840, 121.650, 0.015], // Ende
+    [0.533, 123.050, 0.015],  // Gorontalo
+    [-0.750, 121.250, 0.015], // Matindok
+    [0.800, 127.550, 0.015],  // Tidore
+    [1.450, 128.000, 0.015]   // Jailolo
+  ];
+
+  function hasWebGL() {
+    if (!window.WebGLRenderingContext) return false;
+    try {
+      var probe = document.createElement("canvas");
+      return !!(probe.getContext("webgl2") || probe.getContext("webgl"));
+    } catch (e) { return false; }
+  }
+  if (!hasWebGL()) { plate.hidden = true; return; }
+
+  var PI = Math.PI;
+  /* cobe aims the sphere by what sits under the centre of the view. Measured against
+     the rendered buffer (marker offset vs. anchor), the laws are:
+       phi   = -(90° + longitude)   -> raises the marker's dx as +sin(phi - phi0)
+       theta = +latitude            -> raises the marker's dy as +sin(theta - lat)
+     Both in radians. Calibrated on a lone marker with the land mask off, so the only
+     bright pixel was the marker; it read dead centre at the solved anchor. */
+  var ANCHOR = { phi: -(PI / 2 + 115.5 * PI / 180), theta: -3 * PI / 180 };
+  var MAX_PHI = 1.5;      // ~86° of longitude either way
+  var MAX_THETA = 0.62;   // ~35° of latitude either way, so we never roll over a pole
+
+  function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
+
+  import(new URL("js/vendor/cobe.esm.js", document.baseURI).href).then(function (mod) {
+    var createGlobe = mod && mod.default;
+    if (typeof createGlobe !== "function") { plate.hidden = true; return; }
+
+    /* one pointer pixel ≈ this many radians of surface: the disc is 0.8 * half the
+       stage height and spans 90° from centre to limb. */
+    var px = (PI / 2) / (0.4 * (stage.clientHeight || 420));
+    var cur = { phi: ANCHOR.phi, theta: ANCHOR.theta };
+    var off = { phi: 0, theta: 0 };
+    if (!reduced) { cur.phi -= 0.62; cur.theta += 0.18; }   // turns into frame on arrival
+
+    var globe = createGlobe(canvas, {
+      devicePixelRatio: window.devicePixelRatio || 1,
+      width: stage.clientWidth,
+      height: stage.clientHeight,
+      phi: cur.phi,
+      theta: cur.theta,
+      markers: SITES.map(function (s) { return { location: [s[0], s[1]], size: s[2] }; }),
+      /* Achromatic: ocean near-black, land lifted a few steps off it, the limb
+         glow kept low so it doesn't blow out. No blue anywhere. */
+      dark: 1,
+      diffuse: 1.05,
+      mapSamples: 100000,
+      mapBrightness: 0.30,
+      baseColor: [1, 1, 1],
+      markerColor: [1, 1, 1],
+      glowColor: [0.14, 0.14, 0.17],
+      markerElevation: 0.04
+    });
+
+    var dragging = false, onScreen = false, raf = null, prev = 0, t0 = 0, lastX = 0, lastY = 0;
+
+    function play() { if (raf === null && onScreen) raf = requestAnimationFrame(frame); }
+
+    function frame(now) {
+      raf = null;
+      if (!onScreen) return;
+      if (!t0) t0 = now;
+      var dt = prev ? clamp((now - prev) / 1000, 0.004, 0.1) : 0.016;
+      var t = (now - t0) / 1000;
+      prev = now;
+
+      if (!dragging && !reduced) {
+        var decay = Math.exp(-dt * 2.4);
+        off.phi *= decay;
+        off.theta *= decay;
+      }
+      /* Two unrelated periods so the surface drift never quite repeats, and never
+         travels far enough to lose the archipelago. */
+      var wanderPhi = reduced ? 0 : Math.sin(t * 0.24) * 0.1 + Math.sin(t * 0.11 + 2.1) * 0.05;
+      var wanderTheta = reduced ? 0 : Math.sin(t * 0.17 + 1.1) * 0.03;
+      var goalPhi = ANCHOR.phi + clamp(off.phi + wanderPhi, -MAX_PHI, MAX_PHI);
+      var goalTheta = ANCHOR.theta + clamp(off.theta + wanderTheta, -MAX_THETA, MAX_THETA);
+
+      /* Frame-rate independent ease: one constant for the arrival and the settle-back. */
+      var k = reduced ? 1 : 1 - Math.exp(-dt * 3.4);
+      cur.phi += (goalPhi - cur.phi) * k;
+      cur.theta += (goalTheta - cur.theta) * k;
+      globe.update({ phi: cur.phi, theta: cur.theta });
+      play();
+    }
+
+    if ("IntersectionObserver" in window) {
+      new IntersectionObserver(function (entries) {
+        onScreen = entries[0].isIntersecting;
+        if (onScreen) { prev = 0; play(); }
+      }, { rootMargin: "120px 0px" }).observe(stage);
+    } else {
+      onScreen = true;
+    }
+
+    if ("ResizeObserver" in window) {
+      new ResizeObserver(function () {
+        var w = stage.clientWidth, h = stage.clientHeight;
+        if (!w || !h) return;
+        px = (PI / 2) / (0.4 * h);
+        globe.update({ width: w, height: h });
+      }).observe(stage);
+    }
+
+    if (window.PointerEvent) {
+      stage.addEventListener("pointerdown", function (e) {
+        if (e.pointerType === "mouse" && e.button !== 0) return;
+        dragging = true;
+        lastX = e.clientX; lastY = e.clientY;
+        stage.classList.add("is-dragging", "is-touched");
+        try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+        play();
+      });
+      stage.addEventListener("pointermove", function (e) {
+        if (!dragging) return;
+        off.phi = clamp(off.phi + (e.clientX - lastX) * px, -MAX_PHI, MAX_PHI);
+        off.theta = clamp(off.theta + (e.clientY - lastY) * px, -MAX_THETA, MAX_THETA);
+        lastX = e.clientX; lastY = e.clientY;
+        play();
+      });
+      stage.addEventListener("pointerup", endDrag);
+      stage.addEventListener("pointercancel", endDrag);
+      function endDrag() {
+        dragging = false;
+        stage.classList.remove("is-dragging");
+        play();
+      }
+    }
+
+    play();
+  }).catch(function () { plate.hidden = true; });
 })();
