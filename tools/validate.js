@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 /**
- * Static-site integrity validator for this folder (mahatrax-site).
+ * Static-site integrity validator for this folder (maharaniprima-site).
  * Checks: local file references, same-page anchors, cross-page anchors,
- * JSON-LD validity, tag balance, SEO meta presence.
+ * JSON-LD validity, tag balance, SEO meta presence, generated .min asset
+ * freshness, sitemap lastmod drift (warn only).
  *
  * Run:  node tools/validate.js
  */
@@ -58,5 +59,49 @@ for (const page of pages) {
     if (!noindex && !/rel="canonical"/.test(html)) console.log(`NO CANONICAL ${page}`);
   }
 }
+
+/* Generated assets: the pages only ever load the .min files, so a stale or
+   missing one ships silently. Fail when it is absent or older than its source. */
+const MIN_PAIRS = [
+  ["css/styles.css", "css/styles.min.css"],
+  ["js/main.js", "js/main.min.js"],
+];
+for (const [src, min] of MIN_PAIRS) {
+  const srcPath = path.join(root, src);
+  const minPath = path.join(root, min);
+  if (!fs.existsSync(minPath)) {
+    console.log(`MISSING GENERATED ASSET ${min} (build it from ${src})`); issues++;
+    continue;
+  }
+  const srcM = fs.statSync(srcPath).mtimeMs;
+  const minM = fs.statSync(minPath).mtimeMs;
+  if (minM < srcM) {
+    console.log(`STALE GENERATED ASSET ${min} is older than ${src} — rebuild it`); issues++;
+  }
+}
+
+/* Sitemap freshness: lastmod should never claim a page is older than the file. */
+const warns = [];
+const sitemapPath = path.join(root, "sitemap.xml");
+if (fs.existsSync(sitemapPath)) {
+  const sitemap = fs.readFileSync(sitemapPath, "utf8");
+  for (const entry of [...sitemap.matchAll(/<url>[\s\S]*?<\/url>/g)]) {
+    const loc = (entry[0].match(/<loc>([^<]+)<\/loc>/) || [])[1];
+    const lastmod = (entry[0].match(/<lastmod>([^<]+)<\/lastmod>/) || [])[1];
+    if (!loc || !lastmod) continue;
+    let name = decodeURIComponent(loc.replace(/^https?:\/\/[^/]+\/?/, ""));
+    if (name === "") name = "index.html";
+    if (!name.endsWith(".html")) continue;
+    const filePath = path.join(root, name);
+    if (!fs.existsSync(filePath)) continue;
+    const edited = new Date(fs.statSync(filePath).mtime);
+    const editedDay = `${edited.getFullYear()}-${String(edited.getMonth() + 1).padStart(2, "0")}-${String(edited.getDate()).padStart(2, "0")}`;
+    if (editedDay > lastmod) {
+      warns.push(`SITEMAP DRIFT ${name}: edited ${editedDay}, lastmod ${lastmod} — bump <lastmod>`);
+    }
+  }
+}
+warns.forEach(w => console.log(w));
+
 console.log(issues === 0 ? "ALL CHECKS PASSED" : `${issues} ISSUES FOUND`);
 process.exit(issues === 0 ? 0 : 1);

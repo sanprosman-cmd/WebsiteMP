@@ -301,3 +301,16 @@ Fine-pointer, motion-permitting desktops get a 34px cursor ring (1px 55%-white c
 - **Don't** hand-edit `styles.min.css` or `main.min.js`; they are generated and detector-ignored.
 - **Don't** round record containers past 8px or use pill radii on anything that isn't an action or tag.
 - **Don't** let the header stay white-on-cream or ink-on-black: the inversion flips background, text and logo filter together.
+
+## Protected Visuals
+
+These three are load-bearing brand assets and behaviors. They are **off-limits by default**: do not restyle, replace, re-encode, crop, animate or swap them as a side effect of other work. Change one only on an explicit request, and run its verify step before reporting the edit done. Nothing here forbids *adding* new sections — it forbids collateral damage to these.
+
+1. **The MP logo asset** — `assets/img/logo-transparent.png` (rendered mark), `assets/img/MP Logo.svg`, `assets/img/New logo.png`, `assets/img/favicon.svg`. It is a transparent, padding-cropped wordmark sized *from* `--brand-h`; its color comes from the header's `currentColor` inversion, not from an edited file.
+   *Verify:* scroll `index.html` slowly past 32px — the mark must be white over the hero and unfiltered ink on the cream bar, never a boxed stamp, never missing on either ground.
+2. **The products nav dropdown behavior** — the Capabilities mega menu: hover **and** `:focus-within` drop a near-opaque black panel holding five items, each with its distinct 24×24 stroke icon in a 40px tinted tile, opening from the bar's bottom edge.
+   *Verify:* on `index.html`, hover the trigger, then Tab to it and open it with the keyboard alone — both must reveal all five items with their icons, and Escape/blur must close it.
+3. **The hero video** — `assets/img/photos/hero-towers-720.mp4` (served) over `hero-towers-1080.mp4` (master) and `hero-poster.webp`, inside `.hero--photo` on `index.html` with its scrim graded `.66 → .34 → .72 → .94`.
+   *Verify:* the hero autoplays muted/looping with the poster showing first, the scrim still holds headline contrast, and with `prefers-reduced-motion: reduce` the video does not play.
+
+**The No-Collateral-Edits Rule.** A task that does not name one of these three may not touch it. If work nearby appears to require a change, stop and ask instead of editing.
