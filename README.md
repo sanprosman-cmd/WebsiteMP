@@ -67,7 +67,7 @@ node tools/validate.js        # → "ALL CHECKS PASSED"
 
 ## Version control
 
-This folder is a git repository. Commit after the validator passes: `node tools/validate.js` → `git add -A` → `git commit`. Never push to a remote without being asked. `.gitignore` excludes `.qoder/` and the `tools/_*.png` verification screenshots.
+This folder is a git repository. Commit after the validator passes: `node tools/validate.js` → `git add -A` → `git commit`. Never push to a remote without being asked. `.gitignore` excludes `.qoder/` and the `tools/_*` scratch artifacts (verification screenshots, probes).
 
 ## Asset pipeline
 

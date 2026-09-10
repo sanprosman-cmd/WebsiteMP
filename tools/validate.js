@@ -3,7 +3,7 @@
  * Static-site integrity validator for this folder (maharaniprima-site).
  * Checks: local file references, same-page anchors, cross-page anchors,
  * JSON-LD validity, tag balance, SEO meta presence, generated .min asset
- * freshness, sitemap lastmod drift (warn only).
+ * freshness, sitemap lastmod drift against git history (warn only).
  *
  * Run:  node tools/validate.js
  */
@@ -80,7 +80,47 @@ for (const [src, min] of MIN_PAIRS) {
   }
 }
 
-/* Sitemap freshness: lastmod should never claim a page is older than the file. */
+/* Sitemap freshness: a page that changed while the sitemap did not is stale.
+   File mtimes cannot tell you that — on a fresh clone every page looks edited
+   today, which trains everyone to ignore the warning. So ask git instead: warn
+   when a page's last commit is newer than sitemap.xml's (a commit that touched
+   both had its chance), and fall back to mtime only for uncommitted edits. */
+const touched = {};            // path -> ms of the most recent commit that changed it
+const dirty = new Set();       // pages modified in the working tree
+let byGit = false;
+try {
+  const { execFileSync } = require("child_process");
+  const log = execFileSync("git", ["log", "--format=%cI", "--name-only"],
+    { cwd: root, encoding: "utf8", maxBuffer: 128 * 1024 * 1024 });
+  let ms = 0;
+  for (const line of log.split(/\r?\n/)) {
+    if (/^\d{4}-\d{2}-\d{2}T/.test(line)) { ms = Date.parse(line); continue; }
+    if (!line.endsWith(".html") && line !== "sitemap.xml") continue;
+    if (!(line in touched)) touched[line] = ms;
+  }
+  for (const line of execFileSync("git", ["status", "--porcelain"], { cwd: root, encoding: "utf8" }).split(/\r?\n/)) {
+    const file = line.slice(3).split(" -> ").pop().trim();
+    if (file.endsWith(".html")) dirty.add(file);
+  }
+  byGit = true;
+} catch (e) { /* no git to ask — the mtime fallback is noisier but never silent */ }
+
+const sitemapMs = touched["sitemap.xml"] || 0;
+function dayString(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+/* Returns a reason to warn about, or "" when the entry is straight. */
+function driftOf(name, lastmod) {
+  const byMtime = () => {
+    const day = dayString(fs.statSync(path.join(root, name)).mtime);
+    return day > lastmod ? `edited ${day}, lastmod ${lastmod}` : "";
+  };
+  if (dirty.has(name) || !byGit) return byMtime();
+  const ms = touched[name];
+  if (!ms || ms <= sitemapMs) return "";
+  return `committed ${dayString(new Date(ms))}, lastmod ${lastmod}`;
+}
+
 const warns = [];
 const sitemapPath = path.join(root, "sitemap.xml");
 if (fs.existsSync(sitemapPath)) {
@@ -94,11 +134,8 @@ if (fs.existsSync(sitemapPath)) {
     if (!name.endsWith(".html")) continue;
     const filePath = path.join(root, name);
     if (!fs.existsSync(filePath)) continue;
-    const edited = new Date(fs.statSync(filePath).mtime);
-    const editedDay = `${edited.getFullYear()}-${String(edited.getMonth() + 1).padStart(2, "0")}-${String(edited.getDate()).padStart(2, "0")}`;
-    if (editedDay > lastmod) {
-      warns.push(`SITEMAP DRIFT ${name}: edited ${editedDay}, lastmod ${lastmod} — bump <lastmod>`);
-    }
+    const drift = driftOf(name, lastmod);
+    if (drift) warns.push(`SITEMAP DRIFT ${name}: ${drift} — bump <lastmod>`);
   }
 }
 warns.forEach(w => console.log(w));

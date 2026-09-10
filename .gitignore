@@ -1,3 +1,3 @@
 # Local-only artifacts — never served, never part of the site
 .qoder/
-tools/_*.png
+tools/_*
