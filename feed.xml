@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>PT Maharani Prima — Insights</title>
+  <subtitle>EPCC delivery notes from power, oil &amp; gas and mining construction across Indonesia.</subtitle>
+  <id>https://maharaniprima.com/insights.html</id>
+  <link rel="self" href="https://maharaniprima.com/feed.xml"/>
+  <link rel="alternate" type="text/html" href="https://maharaniprima.com/insights.html"/>
+  <updated>2026-09-11T00:00:00+07:00</updated>
+  <author>
+    <name>PT Maharani Prima</name>
+    <uri>https://maharaniprima.com/</uri>
+  </author>
+  <generator uri="https://maharaniprima.com/">Static dossier site</generator>
+  <entry>
+    <title>What an EPCC contractor does</title>
+    <link rel="alternate" type="text/html" href="https://maharaniprima.com/insight-epcc-contractor.html"/>
+    <id>https://maharaniprima.com/insight-epcc-contractor.html</id>
+    <published>2026-09-11T00:00:00+07:00</published>
+    <updated>2026-09-11T00:00:00+07:00</updated>
+    <category term="EPCC fundamentals"/>
+    <summary>EPCC stands for engineering, procurement, construction and commissioning — one contractor, one point of responsibility from first drawing to a plant that runs. What each phase commits, why the single-source format wins, and the documented record behind it at PT Maharani Prima.</summary>
+  </entry>
+</feed>

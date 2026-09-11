@@ -23,6 +23,8 @@ Pages reference the generated `css/styles.min.css` and `js/main.min.js`. Edit th
 ├── products.html            Product index (6 cards)
 ├── product-*.html           microgrid · powerpod · datacenter · fusionsolar · cloudseeding
 ├── projects.html            Project record, awards, documentation disciplines
+├── insights.html            Insights index (numbered record rows; blog layer)
+├── insight-*.html           Insight articles — template: insight-template.html
 ├── contact.html             Inquiry form (the single conversion path)
 ├── thank-you.html           Post-submit confirmation (noindex, not in sitemap)
 ├── privacy.html terms.html  Legal pages
@@ -33,7 +35,7 @@ Pages reference the generated `css/styles.min.css` and `js/main.min.js`. Edit th
 ├── assets/img/photos/       Photography: .webp served, .jpg masters kept
 ├── assets/geo/              Natural Earth 1:50m coastlines + borders for the footprints globe
 ├── assets/mahatrax/         Mahatrax sub-brand assets + brochure PDF
-├── sitemap.xml robots.txt site.webmanifest
+├── sitemap.xml robots.txt feed.xml llms.txt site.webmanifest
 └── .impeccable/             Detector config + design-system sidecar
 ```
 
@@ -65,6 +67,35 @@ node tools/validate.js        # → "ALL CHECKS PASSED"
 **Gate: `node tools/validate.js` must pass before any page edit is reported complete.** If it fails, fix the cause and run it again — do not lower or edit the validator to make it pass, and do not hand back a change with a red validator. If a failure genuinely can't be fixed in this edit, report it together with the validator's output.
 
 `*.min.css` / `*.min.js` are generated — never hand-edit them (`.impeccable/config.json` also excludes them from the design detector). The validator now fails when either min file is missing or older than its source, so "I edited `styles.css`" without a rebuild is caught, not shipped.
+
+## Insights articles (blog)
+
+Insights is the SEO/AI-discovery layer: indexable long-form pages in the same dossier language, wired into every discovery channel a crawler or answer engine reads.
+
+**The five files involved**
+
+- `insights.html` — the index: one `.row-item` record per article (index number, date tag, title, one-line description).
+- `insight-*.html` — articles. `insight-template.html` is the canonical starting point and carries the full step-by-step checklist in its header comment (it is deliberately absent from `sitemap.xml`).
+- `feed.xml` — Atom feed, one `<entry>` per article; bump the feed-level `<updated>` too.
+- `llms.txt` — plain-text site map for AI crawlers; add new articles to its *Pages* list.
+- `sitemap.xml` — every indexable page.
+
+**Adding an article (short version — the template header has the authoritative list)**
+
+1. Copy `insight-template.html` → `insight-{slug}.html` and run the find/replace tokens at the top of the file (title, slug, category, dates, read time, summary, hero image).
+2. Write the body inside `article.post-body`. Facts must trace to `PRODUCT.md` — no invented statistics, clients or testimonials.
+3. Mirror any FAQ questions 1:1 in the `FAQPage` JSON-LD block.
+4. Add the `.row-item` entry to `insights.html` (bump the index number, tag = publish date).
+5. Add the `<entry>` to `feed.xml` and bump the feed `<updated>`.
+6. Add the `<url>` block to `sitemap.xml` (`lastmod` = publish date).
+7. Add the article to `llms.txt` *Pages*.
+8. `node tools/validate.js` → ALL CHECKS PASSED.
+
+**How discovery works**
+
+- *Search engines:* semantic HTML (one `h1`, `<time>` elements, breadcrumbs), `BlogPosting` + `BreadcrumbList` + `FAQPage` JSON-LD, and the sitemap entry.
+- *AI answer engines:* most never execute JavaScript, so the fully static pages are read as-is; `llms.txt` hands them a factual site map with the load-bearing stats, the Atom feed gives machine-readable updates, and the visible FAQ blocks make answers directly extractable.
+- Keep `lastmod` truthful — the validator warns on sitemap drift.
 
 ## Version control
 
@@ -103,11 +134,11 @@ Any static host works. To keep the site's promises true:
 - Map **404.html** as the not-found page (it carries full navigation).
 - Serve over **HTTPS** and set the security headers `privacy.html` §9 claims: **CSP**, **HSTS**, **X-Frame-Options** (e.g. `_headers` / host config). If the host cannot set them, update privacy §9 instead.
 - Suggested cache: long-lived immutable caching for `assets/`, short/no caching for HTML.
-- `sitemap.xml` lists indexable pages only (`thank-you.html` is `noindex` and deliberately absent). Bump `<lastmod>` when content changes — the validator prints a `SITEMAP DRIFT` warning for any page whose file is newer than its entry.
+- `sitemap.xml` lists indexable pages only (`thank-you.html` is `noindex` and deliberately absent, as is `insight-template.html` — the authoring template). Bump `<lastmod>` when content changes — the validator prints a `SITEMAP DRIFT` warning for any page whose file is newer than its entry.
 
 ## Conventions & gotchas
 
-- **Canonical header/footer are duplicated across all 15 pages** (no templating). Changing nav, mega-menu icons, footer links or the legal bar means changing every page — keep the blocks byte-identical.
+- **Canonical header/footer are duplicated across all 23 pages** (no templating). Changing nav, mega-menu icons, footer links or the legal bar means changing every page — keep the blocks byte-identical.
 - **All files must be valid UTF-8.** A past mixed-encoding save smuggled Windows-1252 bytes into em-dashes site-wide and broke tooling; re-check encoding after bulk edits.
 - The mission headline in `company.html` ("To be the world-class EPCC") is **verbatim company wording** — it carries an `impeccable-disable marketing-buzzword` waiver comment and must not be "improved".
 - Two awards in `projects.html` have no documented year; their year cells are intentionally empty. Do not invent years.

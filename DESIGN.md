@@ -274,6 +274,13 @@ The one place the dossier turns to white paper.
 - **Mega menu:** Capabilities hover/focus-within drops a near-opaque black panel (8px radius, hairline border) of five items, each with a distinct 24×24 stroke icon in a 40px tinted tile.
 - **Mobile (≤860px):** 48px hamburger (three 2px currentColor bars, animates to X), full-screen `rgba(0,0,0,.97)` overlay nav, body scroll locked, Escape closes.
 
+### Insights records
+The blog layer (`insights.html` + `insight-*.html`) adds no tokens, color, shadow or typeface — comprehension is served entirely by the incumbent system:
+- **Listing:** the numbered record rows (`.rows` / `.row-item`) double as the article index — index number, date tag, title + one-line description, arrow — because a hairline-ruled row is legible whether it holds a capability or an entry, and it holds its shape at any count (one row or twenty).
+- **Article page:** sub-hero (crumbs, eyebrow, display stamp, lead) → `.post-meta` record strip (published / category / reading time) → the body typeset inside `article.post-body.measure` (the 62ch cap is the reading rule) with `.cap-list` records, a `.spec-table` stat block and `.post-figure` evidence plates → FAQ block (h2 stamp + h3 questions + answers) → the standard `cta-band`.
+- **Spacing discipline inside the body:** the global reset zeroes margins, so every element in the article carries an explicit `mt-*` utility — the incumbent pattern from the career article template.
+- `feed.xml` and `llms.txt` are machine layers with no visual surface.
+
 ### Signature: The Interactive Layer
 Fine-pointer, motion-permitting desktops get a 34px cursor ring (1px 55%-white circle) that follows with lerp easing and grows to `scale: 1.53` over interactive elements; buttons magnetically pull toward the cursor; the hero cycles a fact ticker every 3.2s; scroll reveals stagger group children at 60ms (`--stagger`); stat values count up once on view; a 2px scroll-progress bar tracks the page. All of it is gated behind `(hover: hover) and (pointer: fine)` and `prefers-reduced-motion`, and animates only transform/opacity/scale.
 
