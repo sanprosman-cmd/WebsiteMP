@@ -340,20 +340,21 @@
       </div>
 
       <!-- Live globe plate — orthographic sphere drawn on 2D canvas from Natural
-           Earth 1:50m coastlines and admin-0 boundaries (assets/geo/earth-50m.json).
-           Hidden only if the canvas has no 2D context; if the geometry fetch fails
-           it still draws the graticule, the place names and the site markers.
-           Either way it is an enrichment of the map above, never the only way to
-           read it. -->
+           Earth 1:50m coastlines and admin-0 boundaries, loaded as a classic
+           script (assets/geo/earth-50m.js) so it also draws when the site is
+           opened straight from disk. Hidden only if the canvas has no 2D
+           context; if that script fails it still draws the graticule, the
+           island names and the site markers. Either way it is an enrichment of
+           the map above, never the only way to read it. -->
       <div class="col mt-xl" data-globe-plate>
         <figure class="globe reveal">
           <div class="globe__stage" data-globe-stage>
-            <canvas data-globe role="img" aria-label="Rotating globe centred on the Indonesian archipelago, drawn from Natural Earth coastlines with country boundaries as hairlines. Indonesia is shaded brighter than its neighbours and named on the sphere, alongside Sumatra, Java, Sulawesi, Papua, Malaysia, the Philippines and Papua New Guinea. A white marker sits at each active project site."></canvas>
+            <canvas data-globe role="img" aria-label="Interactive globe centred on the Indonesian archipelago, drawn from Natural Earth coastlines with every country outlined. Island names — Sumatra, Java, Sulawesi, Papua — and a white marker sits at each active project site. Drag to spin the globe freely in any direction; it carries a little momentum after release."></canvas>
             <p class="globe__hint" aria-hidden="true">Drag to spin</p>
           </div>
           <figcaption class="globe__cap">
             <span class="eyebrow">Footprints · Sphere</span>
-            <span class="caption">The same sites plotted on the globe — Sumatra to Halmahera, one marker per location. Country boundaries are drawn so each marker can be read against the land it belongs to, and Indonesia is lifted brighter than its neighbours and named on the sphere. Release after a drag and it settles back to the archipelago.</span>
+            <span class="caption">The same sites plotted on the globe — Sumatra to Halmahera, one marker per location. Every country is outlined, so each marker can be read against the land it belongs to, and Indonesia is lifted brighter than its neighbours. Drag and it spins freely in any direction; release and the spin carries before it settles.</span>
           </figcaption>
         </figure>
       </div>

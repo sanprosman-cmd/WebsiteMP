@@ -732,7 +732,7 @@
 /* Footprints globe — a hand-rolled orthographic sphere on 2D canvas.
 
    Geometry is Natural Earth 1:50m (public domain), reduced offline by
-   tools/_geo/build-earth.js into assets/geo/earth-50m.json. Raw 50m is 60,629
+   tools/_geo/build-earth.js into assets/geo/earth-50m.js. Raw 50m is 60,629
    vertices and the renderer traces land twice a frame; measured on this plate
    that is 8.92ms of trig alone, over half a 16.7ms frame before anything is
    rasterised. So the coastline is simplified against a vertex budget with three
@@ -757,9 +757,11 @@
    the view centre to a plain latitude and longitude, and land and markers go
    through the same function, so they cannot drift apart.
 
-   The plate is an enrichment of the inline dossier map above it. If the
-   geometry fetch fails the graticule, the place names and the site markers all
-   still draw — the names are copy, not geometry, so they never depend on it. */
+   The plate is an enrichment of the inline dossier map above it. Geometry
+   loads as a classic script tag — the one path that also works when the site
+   is opened straight from disk, where fetch() of a local file is blocked. If
+   it fails the graticule, the island names and the site markers all still
+   draw — the names are copy, not geometry, so they never depend on it. */
 (function () {
   "use strict";
 
@@ -803,11 +805,13 @@
     [1.450, 128.000, 0.015]   // Jailolo
   ];
 
-  /* Where the sphere settles when nothing is pulling it: the Banda Sea, so
-     Sumatra in the west and Halmahera in the east both sit inside the disc. */
+  /* Where the sphere starts: the Banda Sea, so Sumatra in the west and
+     Halmahera in the east both sit inside the disc. From there rotation is
+     free — any longitude, any latitude short of the poles, where the
+     orthographic projection degenerates. It rests wherever the visitor
+     leaves it; nothing pulls it back. */
   var ANCHOR = { lat: -3, lng: 115.5 };
-  var MAX_LAT = 35;   // stop well short of the poles
-  var MAX_LNG = 70;
+  var LAT_LIMIT = 85;   // the poles are unreachable on purpose
 
   var RAD = Math.PI / 180;
   var TAU = Math.PI * 2;
@@ -818,35 +822,23 @@
   var GEO = null;
   var geoRequested = false;
 
-  /* Place names, so a marker reads as somewhere instead of as a dot. The island
-     set matches the dossier map above the plate; the continent set only switches
-     on well into the disc, so dragging away from the archipelago still gives
-     orientation without crowding the resting view.
-     [lat, lng, text, tier] — tier indexes LABEL_TIER in drawLabels. */
+  /* Place names, so a marker reads as somewhere instead of as a dot. Islands
+     only: country and continent names came off the sphere when the admin-0
+     borders took over saying which land is which — a border answers "which
+     country" without nine pieces of copy crowding the disc. The island set
+     matches the dossier map above the plate.
+     [lat, lng, text] */
   var LABELS = [
-    [-1.5, 117.0, "INDONESIA", 0],
-    [0.4, 101.7, "SUMATRA", 1],
-    [-7.5, 110.4, "JAVA", 1],
-    [-2.1, 121.4, "SULAWESI", 1],
-    [-4.0, 138.5, "PAPUA", 1],
-    [3.7, 102.3, "MALAYSIA", 1],
-    [12.8, 122.5, "PHILIPPINES", 1],
-    [-6.6, 145.0, "PNG", 1],
-    [34.0, 90.0, "ASIA", 2],
-    [2.0, 20.0, "AFRICA", 2],
-    [50.0, 15.0, "EUROPE", 2],
-    [-25.5, 134.0, "AUSTRALIA", 2],
-    [-76.0, 120.0, "ANTARCTICA", 2]
+    [0.4, 101.7, "SUMATRA"],
+    [-7.5, 110.4, "JAVA"],
+    [-2.1, 121.4, "SULAWESI"],
+    [-4.0, 138.5, "PAPUA"]
   ];
 
   /* size / weight / peak alpha / the facing at which the name starts to appear.
      minV is a horizon guard: a label near the limb would be squeezed into the
      shading and read as noise, so it fades in only once the surface turns to us. */
-  var LABEL_TIER = [
-    { size: 11, weight: 700, alpha: 0.52, minV: 0.30, track: 2.4 },
-    { size: 8.5, weight: 400, alpha: 0.30, minV: 0.42, track: 1.5 },
-    { size: 10.5, weight: 700, alpha: 0.16, minV: 0.64, track: 3.2 }
-  ];
+  var LABEL_TIER = { size: 8.5, weight: 400, alpha: 0.30, minV: 0.42, track: 1.5 };
 
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
 
@@ -864,14 +856,13 @@
   var P = { x: 0, y: 0, v: 0 };
   var BX = new Float64Array(2048), BY = new Float64Array(2048), BV = new Float64Array(2048);
   var BL = new Float64Array(2048), BN = new Float64Array(2048);
-  var SX = new Float64Array(4096), SY = new Float64Array(4096);
+  var AZ = new Float64Array(2048);
 
   function ensure(n) {
     if (n > BX.length) {
       BX = new Float64Array(n); BY = new Float64Array(n); BV = new Float64Array(n);
-      BL = new Float64Array(n); BN = new Float64Array(n);
+      BL = new Float64Array(n); BN = new Float64Array(n); AZ = new Float64Array(n);
     }
-    if (2 * n > SX.length) { SX = new Float64Array(2 * n); SY = new Float64Array(2 * n); }
   }
 
   /* Shortest-path longitude step, for the few rings that close across the
@@ -896,27 +887,88 @@
      cannot do that, because a ring that is mostly behind the horizon simply has
      almost nothing left to draw.
 
-     What clipping does cost us: where a continent runs off the edge of the
-     visible hemisphere, its fill closes on a straight cut rather than following
-     the horizon. Choosing the right horizon arc for that closure needs the
-     polygon's winding order, which TopoJSON does not guarantee. So the cut is
-     never stroked — only real coastline is — and the limb darkening in draw()
-     is graded hard enough that the cut lands in the shadow band. Measured cost:
-     1.0% of samples disagree with the source data inside 0.75 of the radius. */
+     The visible region is bounded by the horizon, so where a ring dips behind
+     it and comes back — Eurasia from an American view touches the disc at
+     Chukotka and the Baltic with all of Siberia hidden between — the crossing
+     points are joined around the limb, not across the face. Every hidden
+     vertex still projects to a plane position, and atan2 of that position is
+     its azimuth on the limb circle even for far-side points, so the closure
+     simply follows the hidden vertices' azimuths around the circle. Free
+     rotation walks into edge-on views of whole continents constantly, and the
+     old straight-chord closure painted them as a wedge of land over open
+     ocean; the arc closure bounds the fill by the true limb instead.
+
+     The arc is construction, never coast: traceCoast draws only genuinely
+     visible segments, so no horizon section is ever stroked as if it were
+     shoreline. */
+
+  /* one arc segment every 8 degrees: the chord between two points that close
+     on the limb bows inward by R*(1-cos(4°)) ≈ 0.24% of R — under half a pixel
+     at this plate's largest size. */
+  var ARC_STEP = 8 * RAD;
+
+  function arcTo(az, from) {
+    var g = az - from, steps, i, a;
+    if (g > Math.PI) g -= TAU; else if (g < -Math.PI) g += TAU;   // shortest wrap
+    steps = Math.ceil(Math.abs(g) / ARC_STEP);
+    for (i = 1; i <= steps; i++) {
+      a = from + g * i / steps;
+      ctx.lineTo(Math.cos(a) * R, Math.sin(a) * R);
+    }
+    return from + g;    // unwrapped, so the next gap measures from here
+  }
+
   function traceFill(ring, R, c) {
-    var n = projectRing(ring, c), k, j, m = 0, t;
-    for (k = 0; k < n; k++) {
-      j = k + 1 === n ? 0 : k + 1;
-      if (BV[k] >= 0) { SX[m] = BX[k]; SY[m] = BY[k]; m++; }
-      if ((BV[k] >= 0) !== (BV[j] >= 0)) {           // Sutherland–Hodgman crossing
-        t = BV[k] / (BV[k] - BV[j]);
-        project(BL[k] + (BL[j] - BL[k]) * t, lngStep(BN[k], BN[j], t), c, P);
-        SX[m] = P.x; SY[m] = P.y; m++;
+    var n = projectRing(ring, c), i, k, kp, j, t, q;
+    var pen = false, onLimb = false, azCur = 0, azStart = 0, arcN = 0, s = 0;
+    if (n < 3) return;
+    /* start just after a hidden→visible boundary, so a hidden run that
+       straddles the array seam is walked as one continuous run instead of
+       being split into a lost arc and a bogus chord back to the start */
+    if (BV[0] < 0) {
+      for (i = 1; i <= n; i++) {
+        if (BV[i % n] >= 0 && BV[(i + n - 1) % n] < 0) { s = i % n; break; }
       }
     }
-    if (m < 3) return;                               // nothing of it is in view
-    ctx.moveTo(SX[0] * R, SY[0] * R);
-    for (k = 1; k < m; k++) ctx.lineTo(SX[k] * R, SY[k] * R);
+    for (i = 0; i < n; i++) {
+      k = (s + i) % n;
+      kp = (k + n - 1) % n;
+      j = (k + 1) % n;
+      if (BV[k] < 0) {
+        /* far side: remember where this hidden section sits on the limb */
+        if (onLimb && BX[k] * BX[k] + BY[k] * BY[k] > 1e-8) AZ[arcN++] = Math.atan2(BY[k], BX[k]);
+        continue;
+      }
+      if (BV[kp] < 0) {                              // Sutherland–Hodgman in-crossing
+        t = BV[kp] / (BV[kp] - BV[k]);
+        project(BL[kp] + (BL[k] - BL[kp]) * t, lngStep(BN[kp], BN[k], t), c, P);
+        if (onLimb) {                                // close the hidden run around the limb
+          AZ[arcN++] = Math.atan2(P.y, P.x);
+          for (q = 0; q < arcN; q++) azCur = arcTo(AZ[q], azCur);
+          arcN = 0; onLimb = false;
+        }
+        if (pen) ctx.lineTo(P.x * R, P.y * R);
+        else { ctx.moveTo(P.x * R, P.y * R); azStart = Math.atan2(P.y, P.x); pen = true; }
+      } else if (!pen) {                             // ring fully in view
+        ctx.moveTo(BX[k] * R, BY[k] * R);
+        pen = true;
+      }
+      ctx.lineTo(BX[k] * R, BY[k] * R);
+      if (BV[j] < 0) {                               // out-crossing: open the limb arc
+        t = BV[k] / (BV[k] - BV[j]);
+        project(BL[k] + (BL[j] - BL[k]) * t, lngStep(BN[k], BN[j], t), c, P);
+        ctx.lineTo(P.x * R, P.y * R);
+        azCur = Math.atan2(P.y, P.x);
+        arcN = 0; onLimb = true;
+      }
+    }
+    if (onLimb) {
+      /* a hidden run that straddles the array seam closes at the start
+         crossing, whose flush point has already gone by inside the loop —
+         finish the arc here, from the exit azimuth around to it */
+      AZ[arcN++] = azStart;
+      for (q = 0; q < arcN; q++) azCur = arcTo(AZ[q], azCur);
+    }
   }
 
   /* Coastline: only the segments genuinely in view. The chords that close the
@@ -962,21 +1014,20 @@
      dossier map above sets its island names at the same recessive weight, and a
      name must never outrank the site it is sitting next to. */
   function drawLabels(c, R) {
-    var canTrack = "letterSpacing" in ctx, i, s, tier, v, a;
+    var canTrack = "letterSpacing" in ctx, i, s, v, a;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#fff";
     for (i = 0; i < LABELS.length; i++) {
       s = LABELS[i];
-      tier = LABEL_TIER[s[3]];
       project(s[0], s[1], c, P);
       v = P.v;
-      if (v < tier.minV) continue;
+      if (v < LABEL_TIER.minV) continue;
       /* ramp to full over the first 40% of the way from horizon to centre */
-      a = tier.alpha * clamp((v - tier.minV) / (0.4 * (1 - tier.minV)), 0, 1);
+      a = LABEL_TIER.alpha * clamp((v - LABEL_TIER.minV) / (0.4 * (1 - LABEL_TIER.minV)), 0, 1);
       ctx.globalAlpha = a;
-      ctx.font = tier.weight + " " + tier.size + 'px "D-DIN", Arial, sans-serif';
-      if (canTrack) ctx.letterSpacing = tier.track + "px";
+      ctx.font = LABEL_TIER.weight + " " + LABEL_TIER.size + 'px "D-DIN", Arial, sans-serif';
+      if (canTrack) ctx.letterSpacing = LABEL_TIER.track + "px";
       ctx.fillText(s[2], P.x * R, P.y * R);
     }
     ctx.globalAlpha = 1;
@@ -1037,7 +1088,7 @@
        a desktop viewport and 235k was not in a phone one — so the budget sits
        below the lowest measured failure rather than at the highest measured
        success. Above it the ambient wander draws every other vsync; drags, the
-       arrival turn-in and the settle-back keep all of them (see frame). */
+       arrival turn-in and the tail of a fling keep all of them (see frame). */
     var Rd = R * dpr;
     expensive = Math.PI * Rd * Rd > 200000;
   }
@@ -1067,11 +1118,13 @@
     ctx.stroke();
 
     if (GEO) {
-      /* Land sits a step under --hairline-dark so the white markers stay the
-         loudest thing on the plate. */
+      /* Land reads clearly against the body gradient — the plate exists to
+         answer "where on Earth is this site", and land you cannot see answers
+         nothing — while staying under the white markers, the loudest thing on
+         the plate. */
       ctx.beginPath();
       traceLayer(GEO.land, R, c, traceFill);
-      ctx.fillStyle = "#2f2f34";
+      ctx.fillStyle = "#3b3b43";
       ctx.fill("evenodd");
 
       /* Indonesia lifted above it. Every site on this globe is in the country,
@@ -1080,40 +1133,40 @@
          Guinea are single merged polygons there. */
       ctx.beginPath();
       traceLayer(GEO.idn, R, c, traceFill);
-      ctx.fillStyle = "#4e4e57";
+      ctx.fillStyle = "#5d5d67";
       ctx.fill("evenodd");
 
-      /* Coastline first, then interior boundaries over it at a lighter weight.
-         The interior lines are what answers "which country is this site in":
-         the coast only says land. */
+      /* Coastline first, then interior boundaries over it at a heavier weight.
+         The interior lines are what answers "which country is this site in" —
+         the coast only says land — and with the country names gone they are
+         the only thing on the sphere that says it. */
       ctx.beginPath();
       traceLayer(GEO.land, R, c, coastClosed);
       traceLayer(GEO.idn, R, c, coastClosed);
-      ctx.strokeStyle = "rgba(255,255,255,.17)";
-      ctx.lineWidth = 0.7;
+      ctx.strokeStyle = "rgba(255,255,255,.30)";
+      ctx.lineWidth = 0.8;
       ctx.stroke();
 
       ctx.beginPath();
       traceLayer(GEO.border, R, c, coastOpen);
-      ctx.strokeStyle = "rgba(255,255,255,.26)";
-      ctx.lineWidth = 0.65;
+      ctx.strokeStyle = "rgba(255,255,255,.40)";
+      ctx.lineWidth = 0.85;
       ctx.stroke();
 
       /* Indonesia's own outline, brightest of the three */
       ctx.beginPath();
       traceLayer(GEO.idn, R, c, coastClosed);
-      ctx.strokeStyle = "rgba(255,255,255,.44)";
-      ctx.lineWidth = 0.85;
+      ctx.strokeStyle = "rgba(255,255,255,.55)";
+      ctx.lineWidth = 1;
       ctx.stroke();
     }
 
     /* Names sit under the limb shading, so a label turning away darkens with the
        surface it is printed on. They are copy, not geometry: they still draw when
-       the fetch fails. */
+       the script fails. */
     drawLabels(c, R);
 
-    /* limb darkening, so the edge of the disc reads as curvature. Graded hard:
-       it also carries the horizon cuts that traceFill has to close with a chord. */
+    /* limb darkening, so the edge of the disc reads as curvature */
     var shade = ctx.createRadialGradient(0, 0, R * 0.25, 0, 0, R);
     shade.addColorStop(0, "rgba(0,0,0,0)");
     shade.addColorStop(0.62, "rgba(0,0,0,.06)");
@@ -1145,11 +1198,13 @@
   }
 
   var cur = { lat: ANCHOR.lat, lng: ANCHOR.lng };
-  var off = { lat: 0, lng: 0 };
+  var goal = { lat: ANCHOR.lat, lng: ANCHOR.lng };
+  var vel = { lat: 0, lng: 0 };    // deg/s of momentum left over from a fling
   resize();
   if (!reduced) { cur.lng -= 26; cur.lat += 8; }   // turns into frame on arrival
 
   var dragging = false, onScreen = false, raf = null, prev = 0, t0 = 0, lastX = 0, lastY = 0;
+  var lastMoveT = 0, dragVLng = 0, dragVLat = 0;
   var lag = 99;                    // degrees still to cover; 99 keeps the first frame at full cadence
 
   function play() { if (raf === null && onScreen) raf = requestAnimationFrame(frame); }
@@ -1162,7 +1217,7 @@
        so the next drawn frame eases over the whole skipped interval.
        Gated on lag because only the ambient wander is cheap enough to halve. At
        its peak the wander moves the surface 0.16px a frame at 30fps, which is not
-       visible; the arrival turn-in and the settle-back after a drag cover tens of
+       visible; the arrival turn-in and the tail of a fling cover tens of
        degrees and would step by 17px. They keep every vsync until they decay
        inside 1.5 degrees, a band the wander's own steady-state lag of about 0.4
        degrees never leaves. */
@@ -1172,43 +1227,59 @@
     var t = (now - t0) / 1000;
     prev = now;
 
-    if (!dragging && !reduced) {
-      var decay = Math.exp(-dt * 2.4);
-      off.lat *= decay;
-      off.lng *= decay;
+    /* A fling carries the sphere and bleeds off exponentially. Longitude is
+       unbounded — cos and sin are periodic, so 400 degrees projects exactly
+       like 40 — and latitude stops dead at the cap rather than sliding back
+       down it. Both shift by whole turns together, so nothing jumps. */
+    if (!dragging && (vel.lng || vel.lat)) {
+      goal.lng += vel.lng * dt;
+      goal.lat = clamp(goal.lat + vel.lat * dt, -LAT_LIMIT, LAT_LIMIT);
+      if (goal.lat === -LAT_LIMIT || goal.lat === LAT_LIMIT) vel.lat = 0;
+      var decay = Math.exp(-dt * 2.2);
+      vel.lng *= decay; vel.lat *= decay;
+      if (vel.lng < 1 && vel.lng > -1 && vel.lat < 1 && vel.lat > -1) { vel.lng = 0; vel.lat = 0; }
     }
-    /* Two unrelated periods so the drift never quite repeats, and never travels
-       far enough to lose the archipelago. */
+    if (!dragging && (goal.lng > 720 || goal.lng < -720)) {
+      var turn = Math.round(goal.lng / 360) * 360;
+      goal.lng -= turn; cur.lng -= turn;   // tidy the numbers; the view does not move
+    }
+    /* Two unrelated periods so the drift never quite repeats. Added at draw
+       time and never accumulated, so it cannot walk the sphere away from
+       wherever the visitor left it. */
     var wanderLng = reduced ? 0 : Math.sin(t * 0.24) * 5.5 + Math.sin(t * 0.11 + 2.1) * 2.8;
     var wanderLat = reduced ? 0 : Math.sin(t * 0.17 + 1.1) * 1.7;
-    var goalLng = ANCHOR.lng + clamp(off.lng + wanderLng, -MAX_LNG, MAX_LNG);
-    var goalLat = ANCHOR.lat + clamp(off.lat + wanderLat, -MAX_LAT, MAX_LAT);
 
-    /* Frame-rate independent ease: one constant for the arrival and the settle-back. */
+    /* Frame-rate independent ease: one constant for the arrival, the drag
+       follow and the spin decay. */
     var k = reduced ? 1 : 1 - Math.exp(-dt * 3.4);
-    cur.lng += (goalLng - cur.lng) * k;
-    cur.lat += (goalLat - cur.lat) * k;
-    lag = Math.max(Math.abs(goalLng - cur.lng), Math.abs(goalLat - cur.lat));
+    cur.lng += (goal.lng + wanderLng - cur.lng) * k;
+    cur.lat += (goal.lat + wanderLat - cur.lat) * k;
+    lag = Math.max(Math.abs(goal.lng + wanderLng - cur.lng), Math.abs(goal.lat + wanderLat - cur.lat));
 
     draw(cur);
 
     /* With reduced motion there is no drift to keep alive, so the loop stops once
        the sphere is at its pose and only restarts on a pointer or a new frame of
        geometry. Nothing repaints 60 times a second to show the same image. */
-    var settled = Math.abs(goalLng - cur.lng) < 0.01 && Math.abs(goalLat - cur.lat) < 0.01;
+    var settled = Math.abs(goal.lng - cur.lng) < 0.01 && Math.abs(goal.lat - cur.lat) < 0.01;
     if (!(reduced && settled && !dragging)) play();
   }
 
   function loadGeometry() {
-    if (geoRequested || !window.fetch) return;
+    if (geoRequested) return;
     geoRequested = true;
-    fetch(new URL("assets/geo/earth-50m.json", document.baseURI).href)
-      .then(function (r) { return r.ok ? r.json() : null; })
-      .then(function (d) {
-        if (d && d.land && d.land.length) GEO = d;
-        play();                       // the loop may already have parked at its pose
-      })
-      .catch(function () { /* graticule, names and markers alone still read */ });
+    if (window.EARTH_50M && window.EARTH_50M.land) { GEO = window.EARTH_50M; play(); return; }
+    /* A classic <script src>, injected on first view — the one load path that
+       works from file:// as well as over HTTP. fetch() of a local file is
+       blocked by the browser outright, which is exactly how a static site like
+       this one gets opened. */
+    var s = document.createElement("script");
+    s.src = new URL("assets/geo/earth-50m.js", document.baseURI).href;
+    s.onload = function () {
+      if (window.EARTH_50M && window.EARTH_50M.land) { GEO = window.EARTH_50M; play(); }
+    };
+    s.onerror = function () { /* graticule, island names and markers alone still read */ };
+    document.head.appendChild(s);
   }
 
   if ("IntersectionObserver" in window) {
@@ -1240,7 +1311,9 @@
     stage.addEventListener("pointerdown", function (e) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       dragging = true;
-      lastX = e.clientX; lastY = e.clientY;
+      vel.lng = 0; vel.lat = 0;        // a grab kills any fling still in flight
+      dragVLng = 0; dragVLat = 0;
+      lastX = e.clientX; lastY = e.clientY; lastMoveT = e.timeStamp;
       stage.classList.add("is-dragging", "is-touched");
       try { stage.setPointerCapture(e.pointerId); } catch (err) {}
       play();
@@ -1249,15 +1322,31 @@
       if (!dragging) return;
       /* grab-and-drag: the surface follows the pointer, so the centre moves the
          other way in longitude and the same way in latitude */
-      off.lng = clamp(off.lng - (e.clientX - lastX) * degPerPx, -MAX_LNG, MAX_LNG);
-      off.lat = clamp(off.lat + (e.clientY - lastY) * degPerPx, -MAX_LAT, MAX_LAT);
-      lastX = e.clientX; lastY = e.clientY;
+      var dx = e.clientX - lastX, dy = e.clientY - lastY;
+      goal.lng -= dx * degPerPx;
+      goal.lat = clamp(goal.lat + dy * degPerPx, -LAT_LIMIT, LAT_LIMIT);
+      /* momentum estimate: a blend of the instantaneous velocities, so one
+         jittery move cannot throw the sphere the moment the finger lifts */
+      var dtm = clamp((e.timeStamp - lastMoveT) / 1000, 0.004, 0.1);
+      dragVLng = dragVLng * 0.72 - (dx * degPerPx / dtm) * 0.28;
+      dragVLat = dragVLat * 0.72 + (dy * degPerPx / dtm) * 0.28;
+      lastX = e.clientX; lastY = e.clientY; lastMoveT = e.timeStamp;
       play();
     });
     stage.addEventListener("pointerup", endDrag);
     stage.addEventListener("pointercancel", endDrag);
-    function endDrag() {
+    function endDrag(e) {
+      if (dragging) {
+        /* keep the pointer's velocity, capped, unless it has stalled — a press-
+           and-hold must not launch the sphere on release. Reduced motion gets
+           none at all: the surface stops where the finger leaves it. */
+        if (e.timeStamp - lastMoveT > 90) { dragVLng = 0; dragVLat = 0; }
+        vel.lng = reduced ? 0 : clamp(dragVLng, -240, 240);
+        vel.lat = reduced ? 0 : clamp(dragVLat, -120, 120);
+      }
       dragging = false;
+      lastMoveT = 0;
+      dragVLng = 0; dragVLat = 0;
       stage.classList.remove("is-dragging");
       play();
     }
