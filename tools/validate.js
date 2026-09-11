@@ -19,7 +19,7 @@ for (const page of pages) {
 
   for (const ref of refs) {
     if (/^(https?:|mailto:|tel:|#)/.test(ref)) continue;
-    const clean = ref.split("#")[0];
+    const clean = ref.split("#")[0].split("?")[0];
     if (clean && !fs.existsSync(path.join(root, clean))) {
       console.log(`MISSING FILE ${page} -> ${ref}`); issues++;
     }
