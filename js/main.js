@@ -721,7 +721,12 @@
     wrap.classList.add("is-playing");
     video.setAttribute("controls", "controls");
     var p = video.play();
-    if (p && p.catch) { p.catch(function () {}); }
+    if (p && p.catch) {
+      p.catch(function () {
+        wrap.classList.remove("is-playing");
+        video.removeAttribute("controls");
+      });
+    }
   });
   video.addEventListener("ended", function () {
     wrap.classList.remove("is-playing");
