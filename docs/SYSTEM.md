@@ -40,7 +40,7 @@ Listing → detail pattern everywhere; new sections copy an existing one rather 
 - **Video:** hero is 720p H.264 (~0.6 MB, no audio, `+faststart`); the 1080p master is kept in the same folder.
   `ffmpeg -y -i hero-1080.mp4 -vf scale=1280:-2 -c:v libx264 -crf 27 -preset medium -an -movflags +faststart hero-720.mp4`
 - **Map/globe geometry:** a one-time offline conversion (Natural Earth 1:50m TopoJSON → reduced payload via `tools/_geo/build-earth.js`) produces a lazily-injected classic script (`window.EARTH_50M`) that works from both http and `file://`. Culling is audited at 60 view centers before the file is allowed to be written. Never a runtime dependency.
-- **Favicons:** three files behind a `?v=` cache-bust — vector icon (SVG), 32px PNG, 180px apple-touch icon — all regenerated from one geometry by a small GDI+ script. **Any favicon file change must bump the `?v=` stamp across every page and the manifest**, or browsers keep serving the cached old icon.
+- **Favicons:** two PNGs behind a `?v=` cache-bust — 64px `favicon.png` and 180px `apple-touch-icon.png` — regenerated from one geometry by a small GDI+ script; `favicon.svg` is kept on disk as the unreferenced vector master. **Any favicon file change must bump the `?v=` stamp across every page and the manifest**, or browsers keep serving the cached old icon.
 
 ## 5. Build & validation gates
 
@@ -60,7 +60,7 @@ The validator checks: internal file references (after stripping `?query` and `#f
 Every page: unique `<title>`, meta description, canonical URL, OpenGraph tags, JSON-LD. Discovery channels maintained by hand:
 
 - `sitemap.xml` — indexable pages only; `<lastmod>` kept truthful (validator warns on drift).
-- `robots.txt` — allows all, points at the sitemap.
+- `robots.txt` — allows all except the `*-template.html` authoring scaffolds, points at the sitemap.
 - `feed.xml` — Atom feed; feed-level `<updated>` bumped with each article.
 - `llms.txt` — plain-text factual site map for AI answer engines (which mostly don't execute JS): the pages, the load-bearing stats, the contact facts.
 - Insights articles carry `BlogPosting` + `BreadcrumbList` + `FAQPage` JSON-LD, and any FAQ question is mirrored 1:1 between the visible block and the JSON-LD.

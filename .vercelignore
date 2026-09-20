@@ -1,0 +1,4 @@
+# Never deployed — local tooling, scratch and session artifacts
+.qoder/
+.impeccable/
+tools/

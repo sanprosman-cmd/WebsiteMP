@@ -36,6 +36,7 @@ Pages reference the generated `css/styles.min.css` and `js/main.min.js`. Edit th
 ├── assets/geo/              Natural Earth 1:50m coastlines + borders for the footprints globe
 ├── assets/mahatrax/         Mahatrax sub-brand assets + brochure PDF
 ├── sitemap.xml robots.txt feed.xml llms.txt site.webmanifest
+├── vercel.json .vercelignore  Host headers + upload exclusions
 └── .impeccable/             Detector config + design-system sidecar
 ```
 
@@ -131,10 +132,26 @@ If the script fails the plate still draws its graticule, island names and site m
 
 Any static host works. To keep the site's promises true:
 
-- Map **404.html** as the not-found page (it carries full navigation).
-- Serve over **HTTPS** and set the security headers `privacy.html` §9 claims: **CSP**, **HSTS**, **X-Frame-Options** (e.g. `_headers` / host config). If the host cannot set them, update privacy §9 instead.
-- Suggested cache: long-lived immutable caching for `assets/`, short/no caching for HTML.
+- Map **404.html** as the not-found page (it carries full navigation). Vercel does this automatically for static projects.
+- Serve over **HTTPS** and set the security headers `privacy.html` §9 claims: **CSP**, **HSTS**, **X-Frame-Options**. On the current host these come from the committed **`vercel.json`** (HSTS is Vercel's default on production domains). If a host cannot set them, update privacy §9 instead of leaving the claim unbacked.
+- Do not add long-lived `immutable` caching for `assets/` — favicons and photographs are replaced *in place* (behind the `?v=` stamp or the same filename), so revalidation beats a stale immutable copy.
+- `.vercelignore` keeps `tools/`, `.qoder/` and `.impeccable/` out of every upload — tooling and scratch artifacts must never be publicly served.
 - `sitemap.xml` lists indexable pages only (`thank-you.html` is `noindex` and deliberately absent, as is `insight-template.html` — the authoring template). Bump `<lastmod>` when content changes — the validator prints a `SITEMAP DRIFT` warning for any page whose file is newer than its entry.
+
+### Deploy (Vercel)
+
+Production is the Vercel project **website-mp** (account scope `mp-916e`); `maharaniprima.com` is the custom domain and `website-mp-rho.vercel.app` the project URL. First deploy from a fresh clone:
+
+```powershell
+npx.cmd --yes vercel link --yes --project website-mp
+npx.cmd --yes vercel --prod
+```
+
+`vercel.json` and the deployed files are read from the working directory, so deploy after the validator passes and the commit is in. Then confirm the headers actually shipped:
+
+```powershell
+curl.exe -sI https://maharaniprima.com/ | Select-String -Pattern "content-security|x-frame"
+```
 
 ## Conventions & gotchas
 

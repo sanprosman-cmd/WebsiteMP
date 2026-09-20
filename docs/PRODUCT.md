@@ -29,7 +29,7 @@ A fully licensed Indonesian EPCC contractor that delivers **partner technology a
 - Capability lines: Mining & Hauling · Wellpad & Earth Works · Surface Facility · HV & MV Transmission · Power Plant.
 - Product lines: Huawei Microgrid Solution, Huawei Power POD Truck, Huawei Data Center Facility (prefabricated modules), Huawei Fusion Solar (smart PV), Selerys LAICO™ SOBLI cloud seeding, and the company's own Mahatrax mining intelligence platform (mahatrax.com).
 - Licenses: SBUJK, SBUJPTL, SKUP Migas, EBTKE. Certifications: ISO 9001, 14001, 45001, 37001.
-- Project footprint spans Sumatra, Java, Kalimantan, Sulawesi, Maluku, Nusa Tenggara and Bali (29 documented site locations).
+- Project footprint spans Sumatra, Java, Kalimantan, Sulawesi, Maluku, Nusa Tenggara and Bali (28 documented site locations — the copy and Footprints globe both say "28 locations and counting").
 - Awards: CSM Awards PMO 2018 & 2019 (PT Perusahaan Gas Negara Tbk), Kontraktor Terbaik 2018 high-risk EPC (PT PGAS Solution), HSSE Achievement 5,402,696 safe man-hours (PT Pertamina Gas), SIFO 200 Days (PT Perta Drilling Contractor). Two awards have no documented year — displayed without one rather than guessed.
 - As-built documentation maintained across four disciplines: Power Plant; HV & MV Transmission Line; Earthwork & Civil; Mechanical Electrical Piping & Instrument.
 

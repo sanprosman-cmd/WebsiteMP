@@ -28,6 +28,14 @@
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
+  /* ---------- background video under reduced-motion ---------- */
+  if (prefersReduced) {
+    [].slice.call(document.querySelectorAll("video[autoplay]")).forEach(function (v) {
+      v.pause();
+      v.removeAttribute("autoplay");
+    });
+  }
+
   /* ---------- mobile menu ---------- */
   function closeMenu() {
     if (!nav || !toggle) return;
@@ -484,8 +492,11 @@
     filterBar.addEventListener("click", function (e) {
       var btn = e.target.closest(".filter-btn");
       if (!btn) return;
-      filterBar.querySelectorAll(".filter-btn").forEach(function (b) { b.classList.remove("is-active"); });
-      btn.classList.add("is-active");
+      filterBar.querySelectorAll(".filter-btn").forEach(function (b) {
+        var on = b === btn;
+        b.classList.toggle("is-active", on);
+        b.setAttribute("aria-pressed", String(on));
+      });
       applyFilter(btn.dataset.filter);
     });
     applyFilter("all");
@@ -526,8 +537,13 @@
       });
       if (deckStage) deckStage.setAttribute("aria-label", "Field photographs, plate " + (deckAt + 1) + " of " + deckTotal);
       if (deckStatus && deckCaps[deckAt]) {
-        deckStatus.textContent = "Plate " + (deckAt + 1) + " of " + deckTotal + " — " +
-          deckCaps[deckAt].textContent.replace(/\s+/g, " ").trim();
+        var capCat = deckCaps[deckAt].querySelector(".deck__cap-cat");
+        var capTxt = deckCaps[deckAt].querySelector(".deck__cap-text");
+        var capText = capCat && capTxt
+          ? capCat.textContent.replace(/\s+/g, " ").trim() + ": " +
+            capTxt.textContent.replace(/\s+/g, " ").trim()
+          : deckCaps[deckAt].textContent.replace(/\s+/g, " ").trim();
+        deckStatus.textContent = "Plate " + (deckAt + 1) + " of " + deckTotal + " — " + capText;
       }
     }
 

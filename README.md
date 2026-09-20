@@ -36,6 +36,7 @@ Pages reference the generated `css/styles.min.css` and `js/main.min.js`. Edit th
 ├── assets/geo/              Natural Earth 1:50m coastlines + borders for the footprints globe
 ├── assets/mahatrax/         Mahatrax sub-brand assets + brochure PDF
 ├── sitemap.xml robots.txt feed.xml llms.txt site.webmanifest
+├── vercel.json .vercelignore  Host headers + upload exclusions
 └── .impeccable/             Detector config + design-system sidecar
 ```
 
